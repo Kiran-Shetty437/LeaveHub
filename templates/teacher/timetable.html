@@ -19,13 +19,13 @@
         </thead>
         <tbody>
             {% for day in days %}
-            <tr>
+            <tr style="height: 80px;">
                 <td class="day-cell">{{ day }}</td>
                 {% for p in periods %}
                     {% if p == 5 %}
-                        <td rowspan="1" class="lunch-break">BREAK</td>
+                        <td class="lunch-break">BREAK</td>
                     {% endif %}
-                    <td onclick="openEditModal('{{ day }}', {{ p }}, '{{ timetable_data.get(day, {}).get(p, '') }}')">
+                    <td class="timetable-td" onclick="openEditModal('{{ day }}', {{ p }}, '{{ timetable_data.get(day, {}).get(p, '') }}')">
                         <div class="timetable-cell editable">
                             {% if timetable_data.get(day, {}).get(p) %}
                                 <span class="subject-name">{{ timetable_data[day][p] }}</span>
@@ -43,7 +43,7 @@
 </div>
 
 <!-- Edit Modal -->
-<div id="editModal" class="modal">
+<div id="editModal" class="modal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
             <h3 id="modalTitle">Edit Period</h3>
@@ -51,18 +51,22 @@
         </div>
         <div class="modal-body">
             <div class="form-group">
-                <label for="subjectSelect">Select Subject</label>
-                <select id="subjectSelect" class="form-control">
-                    <option value="">-- Clear Slot --</option>
+                <label for="subjectInput">Enter Subject Name</label>
+                <input type="text" id="subjectInput" class="form-control" list="subjectList" placeholder="e.g. Java, DBMS..." autocomplete="off">
+                <datalist id="subjectList">
                     {% for subject in all_subjects %}
-                    <option value="{{ subject }}">{{ subject }}</option>
+                    <option value="{{ subject }}">
                     {% endfor %}
-                </select>
+                </datalist>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">
+                    Tip: Enter a valid subject from the curriculum to auto-assign the class.
+                </p>
             </div>
             <div id="modalError" class="alert alert-danger" style="display: none; padding: 0.75rem; font-size: 0.8rem; margin-top: 1rem;"></div>
         </div>
-        <div class="timetable-actions">
-            <button class="btn btn-primary" onclick="saveCell()">Save Changes</button>
+        <div class="timetable-actions" style="padding: 1.5rem; display: flex; justify-content: flex-end; gap: 1rem; border-top: 1px solid var(--border);">
+            <button class="btn" style="background: #e2e8f0;" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveCell()" id="saveBtn">Save Changes</button>
         </div>
     </div>
 </div>
@@ -71,23 +75,26 @@
 let currentDay = '';
 let currentPeriod = 0;
 
-// Pass mapping from Jinja to JS
 const classMapping = {{ class_mapping | tojson }};
 
 function getClassFromSubject(subject) {
+    if (!subject) return '';
+    const searchSub = subject.trim().toLowerCase();
     for (const [className, subjects] of Object.entries(classMapping)) {
-        if (subjects.includes(subject)) return className;
+        if (subjects.some(s => s.trim().toLowerCase() === searchSub)) return className;
     }
     return '';
 }
 
 function openEditModal(day, period, subject) {
+    console.log(`Opening modal for ${day}, Period ${period}, Subject: ${subject}`);
     currentDay = day;
     currentPeriod = period;
     document.getElementById('modalTitle').innerText = `Edit: ${day} - Period ${period}`;
-    document.getElementById('subjectSelect').value = subject;
+    document.getElementById('subjectInput').value = subject;
     document.getElementById('editModal').style.display = 'block';
     document.getElementById('modalError').style.display = 'none';
+    document.getElementById('subjectInput').focus();
 }
 
 function closeModal() {
@@ -95,9 +102,15 @@ function closeModal() {
 }
 
 async function saveCell() {
-    const subject = document.getElementById('subjectSelect').value;
+    const subject = document.getElementById('subjectInput').value.trim();
     const errorDiv = document.getElementById('modalError');
+    const saveBtn = document.getElementById('saveBtn');
+    
     errorDiv.style.display = 'none';
+    saveBtn.disabled = true;
+    saveBtn.innerText = 'Saving...';
+
+    console.log("Saving cell data:", { day: currentDay, period: currentPeriod, subject: subject });
 
     try {
         const response = await fetch('/api/save_timetable', {
@@ -111,15 +124,22 @@ async function saveCell() {
         });
 
         const result = await response.json();
+        console.log("Server response:", result);
+
         if (result.success) {
             window.location.reload(); 
         } else {
             errorDiv.innerText = result.message;
             errorDiv.style.display = 'block';
+            saveBtn.disabled = false;
+            saveBtn.innerText = 'Save Changes';
         }
     } catch (e) {
-        errorDiv.innerText = "An error occurred while saving.";
+        console.error("Save error:", e);
+        errorDiv.innerText = "Connection error. Please try again.";
         errorDiv.style.display = 'block';
+        saveBtn.disabled = false;
+        saveBtn.innerText = 'Save Changes';
     }
 }
 

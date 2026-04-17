@@ -396,49 +396,45 @@ td {
 
 .timetable {
     width: 100%;
-    border-collapse: separate;
-    border-spacing: 0.5rem;
+    border-collapse: collapse; /* Better for a real grid */
+    min-width: 900px;
 }
 
-.timetable th {
-    background: #f1f5f9;
-    padding: 1rem;
-    text-align: center;
-    border-radius: 0.5rem;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    min-width: 120px;
-}
-
-.timetable .day-cell {
-    background: #f8fafc;
-    font-weight: 600;
-    color: var(--text-main);
-    text-align: left;
-    padding-left: 1rem;
-    width: 150px;
-}
-
-.timetable td {
-    padding: 0;
-    border-top: none;
+.timetable th, .timetable td {
+    border: 1px solid #e2e8f0; /* Visible inner borders */
+    padding: 10px;
     text-align: center;
     vertical-align: middle;
 }
 
+.timetable th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 15px 10px;
+}
+
+.timetable .day-cell {
+    background: #f1f5f9;
+    font-weight: 700;
+    color: var(--text-main);
+    width: 120px;
+}
+
 .timetable-cell {
-    background: #ffffff;
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    padding: 1rem;
-    min-height: 80px;
-    transition: all 0.2s;
+    min-height: 60px;
     cursor: pointer;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.25rem;
+    gap: 4px;
+    transition: background 0.2s;
+}
+
+.timetable td:hover {
+    background: #f1f5f9;
 }
 
 .timetable-cell:hover {

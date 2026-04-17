@@ -465,9 +465,12 @@ def get_class_subject_mapping():
     return {}
 
 def get_class_from_subject(subject_name):
+    if not subject_name: return None
     mapping = get_class_subject_mapping()
+    search_sub = subject_name.strip().lower()
     for class_name, subjects in mapping.items():
-        if subject_name in subjects:
+        # Check case-insensitively
+        if any(search_sub == s.strip().lower() for s in subjects):
             return class_name
     return None
 
@@ -507,21 +510,35 @@ def save_timetable():
     data = request.json
     teacher_id = session.get('user_id')
     day = data.get('day')
-    period = data.get('period')
+    try:
+        period = int(data.get('period'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Invalid period data'}), 400
     subject = data.get('subject')
     
     if not day or not period:
         return jsonify({'success': False, 'message': 'Missing data'}), 400
 
-    # Determine class for the subject
-    class_name = get_class_from_subject(subject) if subject else None
+    # Determine class for the subject and get official casing
+    class_name = None
+    official_subject = subject
+    if subject:
+        mapping = get_class_subject_mapping()
+        search_sub = subject.strip().lower()
+        for c_name, subjects in mapping.items():
+            for s in subjects:
+                if search_sub == s.strip().lower():
+                    class_name = c_name
+                    official_subject = s # Use the name as defined in JSON
+                    break
+            if class_name: break
     
-    # VALIDATION 1: Check if class already has a subject at this time (from another teacher)
+    # VALIDATION 1: Check if class already has a subject at this time
     if subject:
         if not class_name:
-            return jsonify({'success': False, 'message': f'Subject "{subject}" not mapped to any class.'}), 400
+            return jsonify({'success': False, 'message': f'Subject "{subject}" is not in the curriculum list. Please use names like: Java, DBMS, AI...'}), 400
             
-        # Find all subjects mapped to this class
+        # Update search subjects to use official names for database query
         mapping = get_class_subject_mapping()
         class_subjects = mapping.get(class_name, [])
         
@@ -533,21 +550,16 @@ def save_timetable():
         ).first()
         
         if existing_class_record:
-            return jsonify({'success': False, 'message': f'Class {class_name} already has {existing_class_record.subject} at this time (Teacher: {existing_class_record.teacher.name})'}), 400
+            return jsonify({'success': False, 'message': f'Class {class_name} is busy with {existing_class_record.subject} (Teacher: {existing_class_record.teacher.name})'}), 400
 
-    # VALIDATION 2: Prevent teacher having multiple classes at same time 
-    # (Implicitly handled if we only allow one subject per teacher per slot, but let's be explicit)
-    # Actually, in the teacher's own grid, they are just updating their own slot.
-    # But if they try to assign a subject that belongs to a class which is ALREADY busy with another teacher, we caught it above.
-    
     # Find or create record
     record = TeacherTimetable.query.filter_by(teacher_id=teacher_id, day=day, period=period).first()
     
     if subject:
         if record:
-            record.subject = subject
+            record.subject = official_subject
         else:
-            new_record = TeacherTimetable(teacher_id=teacher_id, day=day, period=period, subject=subject)
+            new_record = TeacherTimetable(teacher_id=teacher_id, day=day, period=period, subject=official_subject)
             db.session.add(new_record)
     else:
         # If subject is empty/None, remove the record
