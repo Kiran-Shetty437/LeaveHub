@@ -69,6 +69,11 @@
                     <i class="fas fa-paper-plane"></i>
                     <span>Apply Leave</span>
                 </a>
+                <a href="{{ url_for('teacher_timetable') }}"
+                    class="nav-item {% if '/teacher/timetable' in request.path %}active{% endif %}">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Timetable</span>
+                </a>
                 {% endif %}
 
                 {% if session.get('role') == 'Student' %}
@@ -76,6 +81,11 @@
                     class="nav-item {% if request.path == url_for('apply_leave') %}active{% endif %}">
                     <i class="fas fa-paper-plane"></i>
                     <span>Apply Leave</span>
+                </a>
+                <a href="{{ url_for('student_timetable') }}"
+                    class="nav-item {% if '/student/timetable' in request.path %}active{% endif %}">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Timetable</span>
                 </a>
                 {% endif %}
             </nav>
