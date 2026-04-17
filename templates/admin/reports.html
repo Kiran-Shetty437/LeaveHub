@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Department & Class Reports - LeaveSystem{% endblock %}
+{% block page_title %}Department & Class Wise Records{% endblock %}
+
+{% block content %}
+<div style="background: var(--white); padding: 1rem; border-radius: 0.5rem; margin-bottom: 2rem; border-left: 4px solid var(--primary);">
+    <p style="font-size: 0.875rem; color: var(--text-muted);">
+        <i class="fas fa-file-invoice"></i> Comprehensive history of all leave applications grouped by Department and Class.
+    </p>
+</div>
+
+<!-- Teachers Section -->
+<div class="card-section" style="margin-bottom: 3rem;">
+    <h2 style="margin-bottom: 1.5rem; font-size: 1.5rem; color: var(--primary);">
+        <i class="fas fa-chalkboard-teacher"></i> Department-wise Records (Teachers)
+    </h2>
+    
+    {% for dept, leaves in report_teachers.items() %}
+    <div class="report-group" style="margin-bottom: 2rem;">
+        <h3 style="background: #f1f5f9; padding: 0.75rem 1rem; border-radius: 0.5rem; font-size: 1.1rem; color: var(--text-dark); border-left: 4px solid var(--primary); margin-bottom: 1rem;">
+            {{ dept }}
+        </h3>
+        <div class="table-container" style="background: white; border-radius: 0.5rem; border: 1px solid var(--border);">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--border); background: #fafafa;">
+                        <th style="padding: 1rem; text-align: left; font-weight: 600;">Teacher</th>
+                        <th style="padding: 1rem; text-align: left; font-weight: 600;">Dates</th>
+                        <th style="padding: 1rem; text-align: left; font-weight: 600;">Status</th>
+                        <th style="padding: 1rem; text-align: left; font-weight: 600;">Reason</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for leave in leaves %}
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 1rem;">{{ leave.user.name }}</td>
+                        <td style="padding: 1rem;">{{ leave.dates }}</td>
+                        <td style="padding: 1rem;">
+                            <span class="badge badge-{{ leave.status.lower().replace(' ', '-') }}">
+                                {{ leave.status }}
+                            </span>
+                        </td>
+                        <td style="padding: 1rem; color: var(--text-muted); font-size: 0.875rem;">{{ leave.reason }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <p style="text-align: center; color: var(--text-muted); padding: 2rem;">No teacher leave records found.</p>
+    {% endfor %}
+</div>
+
+<!-- Students Section -->
+<div class="card-section">
+    <h2 style="margin-bottom: 1.5rem; font-size: 1.5rem; color: var(--secondary);">
+        <i class="fas fa-user-graduate"></i> Class-wise Records (Students)
+    </h2>
+    
+    {% for cls, leaves in report_students.items() %}
+    <div class="report-group" style="margin-bottom: 2rem;">
+        <h3 style="background: #fdf2f8; padding: 0.75rem 1rem; border-radius: 0.5rem; font-size: 1.1rem; color: var(--text-dark); border-left: 4px solid var(--secondary); margin-bottom: 1rem;">
+            {{ cls }}
+        </h3>
+        <div class="table-container" style="background: white; border-radius: 0.5rem; border: 1px solid var(--border);">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--border); background: #fafafa;">
+                        <th style="padding: 1rem; text-align: left; font-weight: 600;">Student</th>
+                        <th style="padding: 1rem; text-align: left; font-weight: 600;">Roll No</th>
+                        <th style="padding: 1rem; text-align: left; font-weight: 600;">Dates</th>
+                        <th style="padding: 1rem; text-align: left; font-weight: 600;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for leave in leaves %}
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 1rem;">{{ leave.user.name }}</td>
+                        <td style="padding: 1rem;">{{ leave.user.roll_no }}</td>
+                        <td style="padding: 1rem;">{{ leave.dates }}</td>
+                        <td style="padding: 1rem;">
+                            <span class="badge badge-{{ leave.status.lower().replace(' ', '-') }}">
+                                {{ leave.status }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <p style="text-align: center; color: var(--text-muted); padding: 2rem;">No student leave records found.</p>
+    {% endfor %}
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .badge-forwarded-to-admin {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    .badge-pending {
+        background: #eff6ff;
+        color: #1e40af;
+    }
+    .badge-approved {
+        background: #ecfdf5;
+        color: #065f46;
+    }
+    .badge-rejected {
+        background: #fef2f2;
+        color: #991b1b;
+    }
+</style>
+{% endblock %}

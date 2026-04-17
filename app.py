@@ -193,11 +193,32 @@ def dashboard():
     if role == 'Admin':
         teacher_count = User.query.filter_by(role='Teacher').count()
         student_count = User.query.filter_by(role='Student').count()
-        pending_leaves = LeaveRequest.query.filter_by(status='Pending', role='Teacher').count()
+        pending_leaves = LeaveRequest.query.filter(
+            ((LeaveRequest.role == 'Teacher') & (LeaveRequest.status == 'Pending')) |
+            (LeaveRequest.status == 'Forwarded to Admin')
+        ).count()
         return render_template('admin/dashboard.html', teacher_count=teacher_count, student_count=student_count, pending_leaves=pending_leaves)
     
     elif role == 'Teacher':
-        pending_student_leaves = LeaveRequest.query.filter_by(status='Pending', role='Student').count()
+        # Find mentored classes for this teacher
+        current_teacher_name = session.get('name')
+        mentored_classes = []
+        try:
+            mentors_path = os.path.join(app.root_path, 'mentors_data.json')
+            if os.path.exists(mentors_path):
+                with open(mentors_path, 'r') as f:
+                    mentors_data = json.load(f)
+                for item in mentors_data:
+                    if item['mentor1'] == current_teacher_name or item['mentor2'] == current_teacher_name:
+                        mentored_classes.append(item['class_name'])
+        except Exception as e:
+            print(f"Error loading mentors in dashboard: {e}")
+
+        # Filter count for mentored classes only
+        pending_student_leaves = LeaveRequest.query.join(User, LeaveRequest.user_id == User.id)\
+                                .filter(LeaveRequest.status == 'Pending', LeaveRequest.role == 'Student')\
+                                .filter(User.department.in_(mentored_classes)).count() if mentored_classes else 0
+                                
         my_leaves = LeaveRequest.query.filter_by(user_id=session['user_id']).all()
         return render_template('teacher/dashboard.html', pending_student_leaves=pending_student_leaves, my_leaves=my_leaves)
     
@@ -218,6 +239,22 @@ def handle_connect():
     if 'user_id' in session:
         if session['role'] == 'Admin':
             join_room('admin_room')
+        elif session['role'] == 'Teacher':
+            # Join room for individual notifications
+            join_room(f"user_{session['user_id']}")
+            # Join rooms for mentored classes
+            current_teacher_name = session.get('name')
+            try:
+                mentors_path = os.path.join(app.root_path, 'mentors_data.json')
+                if os.path.exists(mentors_path):
+                    with open(mentors_path, 'r') as f:
+                        mentors_data = json.load(f)
+                    for item in mentors_data:
+                        if item['mentor1'] == current_teacher_name or item['mentor2'] == current_teacher_name:
+                            join_room(f"mentor_{item['class_name']}")
+                            print(f"Teacher {current_teacher_name} joined room: mentor_{item['class_name']}")
+            except Exception as e:
+                print(f"Error joining mentor rooms: {e}")
         else:
             join_room(f"user_{session['user_id']}")
     print(f"Client connected: {request.sid}")
@@ -238,11 +275,11 @@ def manage_students():
 @app.route('/admin/leaves')
 def view_all_leaves():
     if session.get('role') != 'Admin': return redirect(url_for('login'))
-    # Admin views: 1. All Teacher leaves, 2. Student leaves forwarded to Admin
+    # Admin views: All Teacher leaves and ONLY Forwarded Student leaves (for action)
     leaves = LeaveRequest.query.filter(
         (LeaveRequest.role == 'Teacher') | 
         (LeaveRequest.status == 'Forwarded to Admin')
-    ).all()
+    ).order_by(LeaveRequest.created_at.desc()).all()
     return render_template('admin/leaves.html', leaves=leaves)
 
 @app.route('/admin/absentees')
@@ -256,19 +293,41 @@ def view_absentees():
     absent_students = {}
     
     for leave in approved_leaves:
-        if is_absent_today(leave.dates):
-            if leave.role == 'Teacher':
-                dept = leave.user.department
-                if dept not in absent_teachers: absent_teachers[dept] = []
-                absent_teachers[dept].append(leave.user)
-            else:
-                cls = leave.user.department # department field stores Class for students
-                if cls not in absent_students: absent_students[cls] = []
-                absent_students[cls].append(leave.user)
+        if leave.role == 'Teacher':
+            dept = leave.user.department
+            if dept not in absent_teachers: absent_teachers[dept] = []
+            absent_teachers[dept].append(leave)
+        else:
+            cls = leave.user.department # department field stores Class for students
+            if cls not in absent_students: absent_students[cls] = []
+            absent_students[cls].append(leave)
                 
     return render_template('admin/absentees.html', 
                             absent_teachers=absent_teachers, 
                             absent_students=absent_students)
+
+@app.route('/admin/reports')
+def leave_reports():
+    if session.get('role') != 'Admin': return redirect(url_for('login'))
+    
+    all_leaves = LeaveRequest.query.order_by(LeaveRequest.created_at.desc()).all()
+    
+    report_teachers = {}
+    report_students = {}
+    
+    for leave in all_leaves:
+        if leave.role == 'Teacher':
+            dept = leave.user.department or 'Unknown'
+            if dept not in report_teachers: report_teachers[dept] = []
+            report_teachers[dept].append(leave)
+        else:
+            cls = leave.user.department or 'Unknown'
+            if cls not in report_students: report_students[cls] = []
+            report_students[cls].append(leave)
+            
+    return render_template('admin/reports.html', 
+                            report_teachers=report_teachers, 
+                            report_students=report_students)
 
 @app.route('/admin/delete_user/<int:user_id>')
 def delete_user(user_id):
@@ -381,6 +440,16 @@ def apply_leave():
             'status': new_leave.status
         }, to='admin_room')
         
+        # Real-time notification for Mentors
+        if session['role'] == 'Student':
+            student_class = user.department # 'department' field stores the class (e.g., IIBCA)
+            socketio.emit('new_student_leave', {
+                'id': new_leave.id,
+                'student_name': session['name'],
+                'student_class': student_class,
+                'dates': dates
+            }, to=f"mentor_{student_class}")
+        
         flash('Leave request submitted!', 'success')
         return redirect(url_for('dashboard'))
     
@@ -420,12 +489,14 @@ def update_leave(leave_id, status):
         
     flash(f'Leave updated to {status} successfully!', 'info')
     
-    # Real-time notification for User
-    socketio.emit('leave_status_changed', {
+    # Real-time notification for User and Admin
+    update_data = {
         'id': leave_id,
         'status': status,
-        'message': f"Your leave request has been {status}."
-    }, to=f"user_{leave.user_id}")
+        'message': f"Leave request for {leave.user.name} has been {status}."
+    }
+    socketio.emit('leave_status_changed', update_data, to=f"user_{leave.user_id}")
+    socketio.emit('leave_status_changed', update_data, to='admin_room')
     
     return redirect(request.referrer)
 

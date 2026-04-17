@@ -56,6 +56,11 @@
                     <i class="fas fa-calendar-times"></i>
                     <span>Today's Absentees</span>
                 </a>
+                <a href="{{ url_for('leave_reports') }}"
+                    class="nav-item {% if request.path == url_for('leave_reports') %}active{% endif %}">
+                    <i class="fas fa-file-invoice"></i>
+                    <span>Leave Reports</span>
+                </a>
                 {% endif %}
 
                 {% if session.get('role') == 'Teacher' %}
@@ -231,6 +236,19 @@
         const globalSocket = io();
         globalSocket.on('leave_status_changed', (data) => {
             showToast(data.message, data.status === 'Approved' ? 'success' : 'danger');
+        });
+
+        globalSocket.on('new_student_leave', (data) => {
+            {% if session.get('role') == 'Teacher' %}
+                showToast(`New leave request from ${data.student_name} (${data.student_class})`, 'info');
+                // Optional: Play a subtle sound
+            {% endif %}
+        });
+
+        globalSocket.on('new_leave_submitted', (data) => {
+            {% if session.get('role') == 'Admin' %}
+                showToast(`New ${data.role} leave request: ${data.name}`, 'info');
+            {% endif %}
         });
 
         // AI Chat Logic

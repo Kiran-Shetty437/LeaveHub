@@ -94,14 +94,17 @@
                 <span class="badge badge-pending">Pending</span>
             </td>
             <td id="actions-cell-${data.id}">
-                <div style="display: flex; gap: 0.5rem;">
+                ${data.role === 'Student' ? 
+                  '<span style="color: var(--text-muted); font-size: 0.75rem;">Awaiting Mentor</span>' : 
+                  `<div style="display: flex; gap: 0.5rem;">
                     <a href="/update_leave/${data.id}/Approved" class="btn btn-success" style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">
                         <i class="fas fa-check"></i> Approve
                     </a>
                     <a href="/update_leave/${data.id}/Rejected" class="btn btn-danger" style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">
                         <i class="fas fa-times"></i> Reject
                     </a>
-                </div>
+                  </div>`
+                }
             </td>
         `;
         tbody.prepend(newRow);
@@ -117,8 +120,24 @@
     socket.on('leave_status_changed', (data) => {
         const cell = document.getElementById(`status-cell-${data.id}`);
         if (cell) {
-            cell.innerHTML = `<span class="badge badge-${data.status.toLowerCase()}">${data.status}</span>`;
-            document.getElementById(`actions-cell-${data.id}`).innerHTML = '<span style="color: var(--text-muted); font-size: 0.75rem;">Processed</span>';
+            const badgeClass = data.status.includes('Forwarded') ? 'badge-forwarded' : `badge-${data.status.toLowerCase()}`;
+            cell.innerHTML = `<span class="badge ${badgeClass}">${data.status}</span>`;
+            
+            const actionCell = document.getElementById(`actions-cell-${data.id}`);
+            if (data.status === 'Forwarded to Admin') {
+                actionCell.innerHTML = `
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="/update_leave/${data.id}/Approved" class="btn btn-success" style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">
+                            <i class="fas fa-check"></i> Approve
+                        </a>
+                        <a href="/update_leave/${data.id}/Rejected" class="btn btn-danger" style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">
+                            <i class="fas fa-times"></i> Reject
+                        </a>
+                    </div>
+                `;
+            } else {
+                actionCell.innerHTML = '<span style="color: var(--text-muted); font-size: 0.75rem;">Processed</span>';
+            }
         }
     });
 </script>
