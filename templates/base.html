@@ -81,7 +81,15 @@
                     </div>
                     <div class="user-details">
                         <p class="user-name">{{ session.get('name') }}</p>
-                        <p class="user-role">{{ session.get('role') }}</p>
+                        <p class="user-role">
+                            {% if session.get('role') == 'Student' %}
+                                Class: {{ session.get('department') }}
+                            {% elif session.get('role') == 'Teacher' %}
+                                Dept: {{ session.get('department') }}
+                            {% else %}
+                                {{ session.get('role') }}
+                            {% endif %}
+                        </p>
                     </div>
                 </div>
                 <a href="{{ url_for('logout') }}" class="logout-btn">

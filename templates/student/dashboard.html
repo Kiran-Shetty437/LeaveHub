@@ -4,6 +4,14 @@
 {% block page_title %}Student Portal{% endblock %}
 
 {% block content %}
+<!-- Profile Header -->
+<div style="margin-bottom: 2rem; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 2rem; border-radius: 1.5rem; color: white;">
+    <h2 style="font-size: 1.75rem; margin-bottom: 0.5rem;">Welcome, {{ session.get('name') }}!</h2>
+    <p style="opacity: 0.9; font-size: 1.1rem;">
+        <i class="fas fa-graduation-cap"></i> Class: <strong>{{ session.get('department') }}</strong>
+    </p>
+</div>
+
 <div class="stats-grid">
     <div class="stat-card">
         <div class="stat-icon purple">

@@ -7,14 +7,16 @@
 <div class="form-container">
     <div style="background: #eff6ff; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem; border-left: 4px solid var(--primary);">
         <p style="font-size: 0.875rem; color: #1e40af;">
-            <i class="fas fa-info-circle"></i> Your request will be sent to your department teachers for approval.
+            <i class="fas fa-info-circle"></i> Your request will be sent to your department teachers for approval. 
+            <br><strong>Note:</strong> Same-day leave must be applied before <strong>9:00 AM</strong>.
         </p>
     </div>
 
-    <form action="{{ url_for('apply_leave') }}" method="POST" enctype="multipart/form-data">
+    <form id="leaveForm" action="{{ url_for('apply_leave') }}" method="POST" enctype="multipart/form-data">
         <div class="form-group">
             <label for="dates">Leave Dates</label>
-            <input type="text" name="dates" id="dates" class="form-control" placeholder="e.g. May 10th - May 12th" required>
+            <input type="text" name="dates" id="dates" class="form-control" placeholder="DD-MM-YYYY or DD-MM-YYYY to DD-MM-YYYY" required>
+            <small style="color: var(--text-muted);">Format: 10-05-2024 or 10-05-2024 to 12-05-2024</small>
         </div>
         <div class="form-group">
             <label for="reason">Reason for Leave</label>
@@ -32,4 +34,52 @@
         </div>
     </form>
 </div>
+
+<script>
+document.getElementById('leaveForm').onsubmit = function(e) {
+    const datesInput = document.getElementById('dates').value.trim();
+    // Regex for DD-MM-YYYY or DD-MM-YYYY to DD-MM-YYYY
+    const pattern = /^\d{2}-\d{2}-\d{4}( to \d{2}-\d{2}-\d{4})?$/;
+    
+    if (!pattern.test(datesInput)) {
+        alert("Invalid Date Pattern!\nPlease use: DD-MM-YYYY\nOr: DD-MM-YYYY to DD-MM-YYYY");
+        return false;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let startDateStr = datesInput;
+    if (datesInput.includes(' to ')) {
+        startDateStr = datesInput.split(' to ')[0];
+    }
+
+    // Convert DD-MM-YYYY to YYYY-MM-DD for JavaScript Date constructor
+    const parts = startDateStr.split('-');
+    const formattedStartDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+    const startDate = new Date(formattedStartDate);
+    startDate.setHours(0, 0, 0, 0);
+
+    if (isNaN(startDate.getTime())) {
+        alert("Invalid Date value!");
+        return false;
+    }
+
+    if (startDate < today) {
+        alert("Error: Cannot apply for past dates!");
+        return false;
+    }
+
+    // 9 AM Cutoff Logic for Today's Leave
+    const now = new Date();
+    if (startDate.getTime() === today.getTime()) {
+        if (now.getHours() >= 9) {
+            alert("Error: Same-day leave must be applied before 9:00 AM!\nIt is currently " + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+            return false;
+        }
+    }
+
+    return true;
+};
+</script>
 {% endblock %}

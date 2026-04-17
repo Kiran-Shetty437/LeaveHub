@@ -49,7 +49,7 @@ def send_approval_email(target_email, name, role, dates):
 def is_absent_today(date_str):
     """
     Checks if today's date falls within the provided date_str.
-    Expects formats like 'YYYY-MM-DD' or 'YYYY-MM-DD to YYYY-MM-DD'
+    Expects formats like 'DD-MM-YYYY' or 'DD-MM-YYYY to DD-MM-YYYY'
     """
     from datetime import date
     today = date.today()
@@ -57,15 +57,15 @@ def is_absent_today(date_str):
     try:
         if 'to' in date_str.lower():
             start_str, end_str = date_str.lower().split('to')
-            start_date = datetime.strptime(start_str.strip(), '%Y-%m-%d').date()
-            end_date = datetime.strptime(end_str.strip(), '%Y-%m-%d').date()
+            start_date = datetime.strptime(start_str.strip(), '%d-%m-%Y').date()
+            end_date = datetime.strptime(end_str.strip(), '%d-%m-%Y').date()
             return start_date <= today <= end_date
         else:
-            single_date = datetime.strptime(date_str.strip(), '%Y-%m-%d').date()
+            single_date = datetime.strptime(date_str.strip(), '%d-%m-%Y').date()
             return single_date == today
     except:
         # Fallback: simple string inclusion check if format is non-standard
-        today_str = today.strftime('%Y-%m-%d')
+        today_str = today.strftime('%d-%m-%Y')
         return today_str in date_str
 
 db = SQLAlchemy(app)
@@ -166,6 +166,7 @@ def login():
             session['user_id'] = user.id
             session['role'] = user.role
             session['name'] = user.name
+            session['department'] = user.department
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid credentials!', 'danger')
@@ -302,23 +303,39 @@ def apply_leave():
         dates = request.form.get('dates')
         file = request.files.get('document')
         
-        # Date Validation: Prevent past dates
+        # Date Validation: Pattern and Past Dates
         from datetime import date
         today = date.today()
+        import re
+        # Regex for DD-MM-YYYY or DD-MM-YYYY to DD-MM-YYYY
+        pattern = r'^\d{2}-\d{2}-\d{4}( to \d{2}-\d{2}-\d{4})?$'
+        
+        if not re.match(pattern, dates.strip()):
+            flash('Invalid date pattern! Please use DD-MM-YYYY or DD-MM-YYYY to DD-MM-YYYY', 'warning')
+            return redirect(request.referrer)
+
         try:
-            # Check the first date in the string
-            if 'to' in dates.lower():
+            if ' to ' in dates.lower():
                 start_str = dates.lower().split('to')[0].strip()
             else:
                 start_str = dates.strip()
             
-            requested_start = datetime.strptime(start_str, '%Y-%m-%d').date()
+            # Use %d-%m-%Y for parsing
+            requested_start = datetime.strptime(start_str, '%d-%m-%Y').date()
             if requested_start < today:
-                flash(f'Cannot apply for past dates! Today is {today}.', 'warning')
+                flash(f'Cannot apply for past dates! Today is {today.strftime("%d-%m-%Y")}.', 'warning')
                 return redirect(request.referrer)
+            
+            # 9 AM Cutoff Logic for Today's Leave (Students only)
+            if session.get('role') == 'Student' and requested_start == today:
+                now_time = datetime.now().time()
+                cutoff_time = datetime.strptime("09:00:00", "%H:%M:%S").time()
+                if now_time >= cutoff_time:
+                    flash('Same-day leave must be applied before 9:00 AM!', 'danger')
+                    return redirect(request.referrer)
         except Exception as e:
-            # If parsing fails, we allow it but log it (for flexibile formats like "Next Monday")
-            print(f"Date validation skipped: {e}")
+            flash(f'Error parsing dates: {e}', 'warning')
+            return redirect(request.referrer)
         
         filename = None
         if file and allowed_file(file.filename):
