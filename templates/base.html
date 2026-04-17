@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,8 +11,13 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Socket.IO -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     {% block extra_css %}{% endblock %}
 </head>
+
 <body>
     <div class="app-container">
         {% if session.get('user_id') %}
@@ -21,55 +27,55 @@
                 <i class="fas fa-university logo-icon"></i>
                 <span class="logo-text">LeaveSystem</span>
             </div>
-            
+
             <nav class="sidebar-nav">
-                <a href="{{ url_for('dashboard') }}" class="nav-item {% if request.path == url_for('dashboard') %}active{% endif %}">
+                <a href="{{ url_for('dashboard') }}"
+                    class="nav-item {% if request.path == url_for('dashboard') %}active{% endif %}">
                     <i class="fas fa-th-large"></i>
                     <span>Dashboard</span>
                 </a>
 
                 {% if session.get('role') == 'Admin' %}
-                <a href="{{ url_for('manage_teachers') }}" class="nav-item {% if request.path == url_for('manage_teachers') %}active{% endif %}">
+                <a href="{{ url_for('manage_teachers') }}"
+                    class="nav-item {% if request.path == url_for('manage_teachers') %}active{% endif %}">
                     <i class="fas fa-chalkboard-teacher"></i>
                     <span>Teachers</span>
                 </a>
-                <a href="{{ url_for('manage_students') }}" class="nav-item {% if request.path == url_for('manage_students') %}active{% endif %}">
+                <a href="{{ url_for('manage_students') }}"
+                    class="nav-item {% if request.path == url_for('manage_students') %}active{% endif %}">
                     <i class="fas fa-user-graduate"></i>
                     <span>Students</span>
                 </a>
-                <a href="{{ url_for('view_all_leaves') }}" class="nav-item {% if request.path == url_for('view_all_leaves') %}active{% endif %}">
+                <a href="{{ url_for('view_all_leaves') }}"
+                    class="nav-item {% if request.path == url_for('view_all_leaves') %}active{% endif %}">
                     <i class="fas fa-clipboard-list"></i>
                     <span>Teacher Leaves</span>
                 </a>
-                <a href="{{ url_for('view_absentees') }}" class="nav-item {% if request.path == url_for('view_absentees') %}active{% endif %}">
+                <a href="{{ url_for('view_absentees') }}"
+                    class="nav-item {% if request.path == url_for('view_absentees') %}active{% endif %}">
                     <i class="fas fa-calendar-times"></i>
                     <span>Today's Absentees</span>
                 </a>
                 {% endif %}
 
                 {% if session.get('role') == 'Teacher' %}
-                <a href="{{ url_for('teacher_student_leaves') }}" class="nav-item {% if request.path == url_for('teacher_student_leaves') %}active{% endif %}">
+                <a href="{{ url_for('teacher_student_leaves') }}"
+                    class="nav-item {% if request.path == url_for('teacher_student_leaves') %}active{% endif %}">
                     <i class="fas fa-tasks"></i>
                     <span>Student Requests</span>
                 </a>
-                <a href="{{ url_for('apply_leave') }}" class="nav-item {% if request.path == url_for('apply_leave') %}active{% endif %}">
+                <a href="{{ url_for('apply_leave') }}"
+                    class="nav-item {% if request.path == url_for('apply_leave') %}active{% endif %}">
                     <i class="fas fa-paper-plane"></i>
                     <span>Apply Leave</span>
-                </a>
-                <a href="{{ url_for('teacher_timetable') }}" class="nav-item {% if '/teacher/timetable' in request.path %}active{% endif %}">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>Timetable</span>
                 </a>
                 {% endif %}
 
                 {% if session.get('role') == 'Student' %}
-                <a href="{{ url_for('apply_leave') }}" class="nav-item {% if request.path == url_for('apply_leave') %}active{% endif %}">
+                <a href="{{ url_for('apply_leave') }}"
+                    class="nav-item {% if request.path == url_for('apply_leave') %}active{% endif %}">
                     <i class="fas fa-paper-plane"></i>
                     <span>Apply Leave</span>
-                </a>
-                <a href="{{ url_for('student_timetable') }}" class="nav-item {% if '/student/timetable' in request.path %}active{% endif %}">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>Timetable</span>
                 </a>
                 {% endif %}
             </nav>
@@ -103,13 +109,13 @@
 
             <div class="content-body">
                 {% with messages = get_flashed_messages(with_categories=true) %}
-                  {% if messages %}
-                    {% for category, message in messages %}
-                      <div class="alert alert-{{ category }}">
-                        {{ message }}
-                      </div>
-                    {% endfor %}
-                  {% endif %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+                {% endif %}
                 {% endwith %}
 
                 {% block content %}{% endblock %}
@@ -117,8 +123,147 @@
         </main>
     </div>
 
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <!-- AI Chatbot UI -->
+    <div id="ai-chat-wrapper">
+        <div id="ai-chat-bubble" onclick="toggleChat()">
+            <i class="fas fa-robot"></i>
+        </div>
+        <div id="ai-chat-window" class="hidden">
+            <div class="chat-header">
+                <span>AI Assistant (Ollama)</span>
+                <i class="fas fa-times" onclick="toggleChat()"></i>
+            </div>
+            <div id="chat-messages">
+                <div class="msg ai-msg">Hello! I'm your AI assistant. How can I help you today?</div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Ask something..." onkeypress="handleChatKey(event)">
+                <button onclick="sendChatMessage()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000; pointer-events: none;"></div>
+
+    <script>
+        // Global showToast function
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast-msg toast-${type}`;
+            toast.style.cssText = `
+                background: #1e293b;
+                color: white;
+                padding: 12px 24px;
+                border-radius: 8px;
+                margin-bottom: 10px;
+                box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+                animation: slideIn 0.3s ease-out;
+                pointer-events: auto;
+                min-width: 250px;
+                border-left: 4px solid ${type === 'success' ? '#10b981' : (type === 'danger' ? '#ef4444' : '#3b82f6')};
+            `;
+            
+            toast.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 15px;">
+                    <span>${message}</span>
+                    <i class="fas fa-times" onclick="this.parentElement.parentElement.remove()" style="cursor: pointer; font-size: 0.8rem; opacity: 0.6;"></i>
+                </div>
+            `;
+            
+            container.appendChild(toast);
+            setTimeout(() => {
+                if (toast.parentElement) toast.style.opacity = '0';
+                setTimeout(() => { if (toast.parentElement) toast.remove(); }, 500);
+            }, 5000);
+        }
+
+        // Keyframe for slideIn
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            .toast-msg { transition: opacity 0.5s ease; }
+        `;
+        document.head.appendChild(style);
+
+        // Additional Styles for AI Chat
+        const chatStyle = document.createElement('style');
+        chatStyle.innerHTML = `
+            #ai-chat-wrapper { position: fixed; bottom: 80px; right: 20px; z-index: 9999; font-family: 'Outfit', sans-serif; }
+            #ai-chat-bubble { width: 50px; height: 50px; background: #3b82f6; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: transform 0.3s; }
+            #ai-chat-bubble:hover { transform: scale(1.1); }
+            #ai-chat-window { width: 320px; height: 450px; background: white; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #e2e8f0; position: absolute; bottom: 70px; right: 0; }
+            #ai-chat-window.hidden { display: none; }
+            .chat-header { background: #3b82f6; color: white; padding: 15px; display: flex; justify-content: space-between; font-weight: 600; font-size: 14px; }
+            #chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #f8fafc; }
+            .msg { padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.4; max-width: 85%; }
+            .ai-msg { background: #e2e8f0; color: #1e293b; align-self: flex-start; border-bottom-left-radius: 2px; }
+            .user-msg { background: #3b82f6; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+            .chat-input-area { padding: 10px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; background: white; }
+            .chat-input-area input { flex: 1; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; font-size: 13px; }
+            .chat-input-area button { background: #3b82f6; color: white; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+        `;
+        document.head.appendChild(chatStyle);
+
+        // Global Socket Logic for notifications
+        const globalSocket = io();
+        globalSocket.on('leave_status_changed', (data) => {
+            showToast(data.message, data.status === 'Approved' ? 'success' : 'danger');
+        });
+
+        // AI Chat Logic
+        function toggleChat() {
+            document.getElementById('ai-chat-window').classList.toggle('hidden');
+        }
+
+        function handleChatKey(e) {
+            if (e.key === 'Enter') sendChatMessage();
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const query = input.value.trim();
+            if (!query) return;
+
+            // Append User Message
+            const chatBox = document.getElementById('chat-messages');
+            chatBox.innerHTML += `<div class="msg user-msg">${query}</div>`;
+            input.value = '';
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Loading Message
+            const loadingId = 'loading-' + Date.now();
+            chatBox.innerHTML += `<div class="msg ai-msg" id="${loadingId}">Thinking...</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const res = await fetch('/ai/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query })
+                });
+                const data = await res.json();
+                
+                const loadingMsg = document.getElementById(loadingId);
+                if (data.response) {
+                    loadingMsg.textContent = data.response;
+                } else {
+                    loadingMsg.textContent = "Error: " + (data.error || "Unknown error");
+                    loadingMsg.style.color = "#ef4444";
+                }
+            } catch (err) {
+                document.getElementById(loadingId).textContent = "Error connecting to server.";
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    </script>
+
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>
+
 </html>

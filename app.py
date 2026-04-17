@@ -2,7 +2,10 @@ import os
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail, Message
+from flask_socketio import SocketIO, emit, join_room
 from datetime import datetime
+import requests
+import json
 from werkzeug.utils import secure_filename
 import threading
 from dotenv import load_dotenv
@@ -12,6 +15,7 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'default_secret_key')
+socketio = SocketIO(app, cors_allowed_origins="*")
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'sqlite:///database_v2.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.path.join('static', 'uploads')
@@ -202,6 +206,16 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
+# Socket.IO Connection and Rooms
+@socketio.on('connect')
+def handle_connect():
+    if 'user_id' in session:
+        if session['role'] == 'Admin':
+            join_room('admin_room')
+        else:
+            join_room(f"user_{session['user_id']}")
+    print(f"Client connected: {request.sid}")
+
 # Admin Routes
 @app.route('/admin/teachers')
 def manage_teachers():
@@ -334,6 +348,17 @@ def apply_leave():
         )
         db.session.add(new_leave)
         db.session.commit()
+        
+        # Real-time notification for Admin
+        socketio.emit('new_leave_submitted', {
+            'id': new_leave.id,
+            'name': session['name'],
+            'role': session['role'],
+            'dates': dates,
+            'reason': reason,
+            'status': new_leave.status
+        }, to='admin_room')
+        
         flash('Leave request submitted!', 'success')
         return redirect(url_for('dashboard'))
     
@@ -372,6 +397,14 @@ def update_leave(leave_id, status):
         send_approval_email(leave.user.email, leave.user.name, leave.role, leave.dates)
         
     flash(f'Leave updated to {status} successfully!', 'info')
+    
+    # Real-time notification for User
+    socketio.emit('leave_status_changed', {
+        'id': leave_id,
+        'status': status,
+        'message': f"Your leave request has been {status}."
+    }, to=f"user_{leave.user_id}")
+    
     return redirect(request.referrer)
 
 # Timetable Management Routes
@@ -507,5 +540,40 @@ def student_timetable():
                            periods=periods,
                            student_class=student_class)
 
+# AI Integration with Ollama
+@app.route('/ai/ask', methods=['POST'])
+def ai_ask():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    user_query = request.json.get('query')
+    if not user_query:
+        return jsonify({'error': 'No query provided'}), 400
+
+    role = session.get('role')
+    user_name = session.get('name')
+    
+    # System prompt to give context
+    system_prompt = f"You are an AI assistant for a College Leave Management System. The current user is {user_name} with the role of {role}. Answer concisely."
+    
+    try:
+        # Calling local Ollama API (Assumes llama3 is installed, fallback to llama2)
+        response = requests.post('http://localhost:11434/api/generate', 
+            json={
+                'model': 'llama3', 
+                'prompt': f"{system_prompt}\nUser: {user_query}",
+                'stream': False
+            }, timeout=30)
+        
+        if response.status_code == 200:
+            result = response.json()
+            return jsonify({'response': result['response']})
+        else:
+            return jsonify({'error': 'Ollama server error'}), 500
+    except requests.exceptions.ConnectionError:
+        return jsonify({'error': 'Ollama not running. Please start Ollama on your machine.'}), 503
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    socketio.run(app, debug=True)

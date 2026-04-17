@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Student Dashboard - Real-Time Leave</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f8fafc; margin: 0; padding: 40px; }
+        .container { max-width: 800px; margin: auto; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        h2, h3 { color: #1e293b; margin-top: 0; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 14px; }
+        input, textarea { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; }
+        button { padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #edf2f7; }
+        th { background: #f8fafc; font-size: 13px; text-transform: uppercase; color: #64748b; }
+        .status { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .status-Pending { background: #fef3c7; color: #92400e; }
+        .status-Approved { background: #d1fae5; color: #065f46; }
+        .status-Rejected { background: #fee2e2; color: #991b1b; }
+        
+        #toast { position: fixed; top: 20px; right: 20px; background: #1e293b; color: white; padding: 15px 25px; border-radius: 8px; box-shadow: 0 10px 15px rgba(0,0,0,0.1); display: none; z-index: 1000; animation: slideIn 0.3s; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+    </style>
+</head>
+<body>
+    <div id="toast"></div>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Student Dashboard</h2>
+            <a href="/logout" style="color: #64748b; font-size: 14px;">Logout</a>
+        </div>
+
+        <div class="card">
+            <h3>Apply for Leave</h3>
+            <form id="leave-form">
+                <div class="form-group">
+                    <label>Your Name</label>
+                    <input type="text" id="name" value="{{ session['username'] }}" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Reason</label>
+                    <textarea id="reason" required placeholder="Why are you taking leave?"></textarea>
+                </div>
+                <div style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>From Date</label>
+                        <input type="date" id="from_date" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>To Date</label>
+                        <input type="date" id="to_date" required>
+                    </div>
+                </div>
+                <button type="submit">Submit Application</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h3>My Leave History</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Dates</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body">
+                    {% for leave in leaves %}
+                    <tr id="leave-{{ leave.id }}">
+                        <td>{{ leave.from_date }} to {{ leave.to_date }}</td>
+                        <td>{{ leave.reason }}</td>
+                        <td><span class="status status-{{ leave.status }}" id="status-{{ leave.id }}">{{ leave.status }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        const form = document.getElementById('leave-form');
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('name').value,
+                role: 'Student',
+                reason: document.getElementById('reason').value,
+                from_date: document.getElementById('from_date').value,
+                to_date: document.getElementById('to_date').value
+            };
+            socket.emit('new_leave', data);
+            form.reset();
+            
+            // Temporary UI update (full update comes on page reload or we could append here)
+            showToast('Leave request submitted!');
+            setTimeout(() => location.reload(), 1500); 
+        });
+
+        socket.on('leave_status_updated', (data) => {
+            showToast(data.message);
+            const statusLabel = document.getElementById(`status-${data.leave_id}`);
+            if (statusLabel) {
+                statusLabel.className = `status status-${data.status}`;
+                statusLabel.textContent = data.status;
+            }
+        });
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 4000);
+        }
+    </script>
+</body>
+</html>

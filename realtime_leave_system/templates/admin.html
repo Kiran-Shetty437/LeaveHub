@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Panel - Real-Time Leave</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f1f5f9; margin: 0; padding: 40px; }
+        .container { max-width: 1100px; margin: auto; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2 { color: #0f172a; margin-top: 0; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { text-align: left; padding: 15px; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f8fafc; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
+        
+        .status { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+        .status-Pending { background: #fef3c7; color: #92400e; }
+        .status-Approved { background: #d1fae5; color: #065f46; }
+        .status-Rejected { background: #fee2e2; color: #991b1b; }
+        
+        .btn-action { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; margin-right: 5px; }
+        .btn-approve { background: #10b981; color: white; }
+        .btn-reject { background: #ef4444; color: white; }
+        
+        #toast { position: fixed; top: 20px; right: 20px; background: #1e293b; color: white; padding: 15px 25px; border-radius: 8px; box-shadow: 0 10px 15px rgba(0,0,0,0.1); display: none; z-index: 1000; }
+        
+        .new-row { animation: highlight 2s ease; }
+        @keyframes highlight { from { background: #eff6ff; } to { background: transparent; } }
+    </style>
+</head>
+<body>
+    <div id="toast"></div>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Admin Dashboard (Real-Time)</h2>
+            <a href="/logout" style="color: #64748b; font-size: 14px;">Logout</a>
+        </div>
+        
+        <div class="card">
+            <h3>Recent Leave Requests</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date Applied</th>
+                        <th>Applicant</th>
+                        <th>Dates</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-table-body">
+                    {% for leave in leaves %}
+                    <tr id="row-{{ leave.id }}">
+                        <td style="font-size: 12px; color: #64748b;">{{ leave.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td><b>{{ leave.name }}</b></td>
+                        <td>{{ leave.from_date }} to {{ leave.to_date }}</td>
+                        <td>{{ leave.reason }}</td>
+                        <td><span class="status status-{{ leave.status }}" id="status-{{ leave.id }}">{{ leave.status }}</span></td>
+                        <td id="actions-{{ leave.id }}">
+                            {% if leave.status == 'Pending' %}
+                            <button class="btn-action btn-approve" onclick="updateStatus({{ leave.id }}, 'Approved')">Approve</button>
+                            <button class="btn-action btn-reject" onclick="updateStatus({{ leave.id }}, 'Rejected')">Reject</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        socket.on('receive_new_leave', (data) => {
+            showToast(`New leave request from ${data.name}!`);
+            
+            const tbody = document.getElementById('admin-table-body');
+            const newRow = document.createElement('tr');
+            newRow.id = `row-${data.id}`;
+            newRow.className = 'new-row';
+            newRow.innerHTML = `
+                <td style="font-size: 12px; color: #64748b;">${data.timestamp}</td>
+                <td><b>${data.name}</b></td>
+                <td>${data.from_date} to ${data.to_date}</td>
+                <td>${data.reason}</td>
+                <td><span class="status status-Pending" id="status-${data.id}">Pending</span></td>
+                <td id="actions-${data.id}">
+                    <button class="btn-action btn-approve" onclick="updateStatus(${data.id}, 'Approved')">Approve</button>
+                    <button class="btn-action btn-reject" onclick="updateStatus(${data.id}, 'Rejected')">Reject</button>
+                </td>
+            `;
+            tbody.prepend(newRow);
+        });
+
+        function updateStatus(id, status) {
+            socket.emit('update_status', { leave_id: id, status: status });
+            
+            // UI Update
+            const statusLabel = document.getElementById(`status-${id}`);
+            statusLabel.className = `status status-${status}`;
+            statusLabel.textContent = status;
+            
+            // Hide actions
+            document.getElementById(`actions-${id}`).innerHTML = '';
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 5000);
+        }
+    </script>
+</body>
+</html>

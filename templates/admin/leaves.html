@@ -18,9 +18,9 @@
                 <th>Actions</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="leaves-table-body">
             {% for leave in leaves %}
-            <tr>
+            <tr id="leave-row-{{ leave.id }}">
                 <td style="font-weight: 600;">{{ leave.user.name }}</td>
                 <td>{{ leave.role }}</td>
                 <td>{{ leave.user.department if leave.role == 'Teacher' else leave.user.roll_no }}</td>
@@ -35,12 +35,12 @@
                     <span style="color: #cbd5e1; font-size: 0.75rem;">None</span>
                     {% endif %}
                 </td>
-                <td>
+                <td id="status-cell-{{ leave.id }}">
                     <span class="badge {% if 'Forwarded' in leave.status %}badge-forwarded{% else %}badge-{{ leave.status.lower() }}{% endif %}">
                         {{ leave.status }}
                     </span>
                 </td>
-                <td>
+                <td id="actions-cell-{{ leave.id }}">
                     {% if (leave.role == 'Teacher' or leave.status == 'Forwarded to Admin') and (leave.status != 'Approved' and leave.status != 'Rejected') %}
                     <div style="display: flex; gap: 0.5rem;">
                         <a href="{{ url_for('update_leave', leave_id=leave.id, status='Approved') }}" class="btn btn-success" style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">
@@ -58,7 +58,7 @@
                 </td>
             </tr>
             {% else %}
-            <tr>
+            <tr id="no-leaves-row">
                 <td colspan="8" style="text-align: center; padding: 3rem; color: var(--text-muted);">
                     No leave requests found in the system.
                 </td>
@@ -67,4 +67,66 @@
         </tbody>
     </table>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const socket = io();
+
+    socket.on('new_leave_submitted', (data) => {
+        // Remove 'No requests' row if it exists
+        const noLeavesRow = document.getElementById('no-leaves-row');
+        if (noLeavesRow) noLeavesRow.remove();
+
+        const tbody = document.getElementById('leaves-table-body');
+        const newRow = document.createElement('tr');
+        newRow.id = `leave-row-${data.id}`;
+        newRow.style.animation = 'highlight 2s ease';
+        
+        newRow.innerHTML = `
+            <td style="font-weight: 600;">${data.name}</td>
+            <td>${data.role}</td>
+            <td>-</td> 
+            <td>${data.dates}</td>
+            <td style="max-width: 300px;">${data.reason}</td>
+            <td><span style="color: #cbd5e1; font-size: 0.75rem;">Pending Refresh</span></td>
+            <td id="status-cell-${data.id}">
+                <span class="badge badge-pending">Pending</span>
+            </td>
+            <td id="actions-cell-${data.id}">
+                <div style="display: flex; gap: 0.5rem;">
+                    <a href="/update_leave/${data.id}/Approved" class="btn btn-success" style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">
+                        <i class="fas fa-check"></i> Approve
+                    </a>
+                    <a href="/update_leave/${data.id}/Rejected" class="btn btn-danger" style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">
+                        <i class="fas fa-times"></i> Reject
+                    </a>
+                </div>
+            </td>
+        `;
+        tbody.prepend(newRow);
+        
+        // Show a visual notification
+        if (typeof showToast === 'function') {
+            showToast(`New leave request from ${data.name}!`);
+        } else {
+            alert(`New leave request from ${data.name}!`);
+        }
+    });
+
+    socket.on('leave_status_changed', (data) => {
+        const cell = document.getElementById(`status-cell-${data.id}`);
+        if (cell) {
+            cell.innerHTML = `<span class="badge badge-${data.status.toLowerCase()}">${data.status}</span>`;
+            document.getElementById(`actions-cell-${data.id}`).innerHTML = '<span style="color: var(--text-muted); font-size: 0.75rem;">Processed</span>';
+        }
+    });
+</script>
+
+<style>
+    @keyframes highlight {
+        from { background: #eff6ff; }
+        to { background: transparent; }
+    }
+</style>
 {% endblock %}
