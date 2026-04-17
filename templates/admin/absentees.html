@@ -6,7 +6,7 @@
 {% block content %}
 <div style="background: var(--white); padding: 1rem; border-radius: 0.5rem; margin-bottom: 2rem; border-left: 4px solid var(--warning);">
     <p style="font-size: 0.875rem; color: var(--text-muted);">
-        <i class="fas fa-calendar-day"></i> Listing all members with <strong>Approved</strong> leave for today.
+        <i class="fas fa-calendar-alt"></i> Listing all <strong>Approved</strong> leave applications and their scheduled dates.
     </p>
 </div>
 
@@ -21,15 +21,18 @@
                 </h3>
                 <ul style="list-style: none; padding-left: 0;">
                     {% for teacher in teachers %}
-                    <li style="padding: 0.5rem; background: #fff; border-radius: 0.25rem; margin-bottom: 0.25rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; justify-content: space-between;">
-                        <span>{{ teacher.name }}</span>
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">{{ teacher.email }}</span>
+                    <li style="padding: 0.5rem; background: #fff; border-radius: 0.25rem; margin-bottom: 0.25rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 0.25rem;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="font-weight: 600;">{{ teacher.user.name }}</span>
+                            <span style="font-size: 0.75rem; color: var(--primary); font-weight: 500;">{{ teacher.dates }}</span>
+                        </div>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">{{ teacher.user.email }}</span>
                     </li>
                     {% endfor %}
                 </ul>
             </div>
         {% else %}
-            <p style="text-align: center; color: var(--text-muted); padding: 2rem;">No teachers are absent today.</p>
+            <p style="text-align: center; color: var(--text-muted); padding: 2rem;">No teachers with approved leave.</p>
         {% endfor %}
     </div>
 
@@ -43,15 +46,18 @@
                 </h3>
                 <ul style="list-style: none; padding-left: 0;">
                     {% for student in students %}
-                    <li style="padding: 0.5rem; background: #fff; border-radius: 0.25rem; margin-bottom: 0.25rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; justify-content: space-between;">
-                        <span>{{ student.name }}</span>
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">{{ student.roll_no }}</span>
+                    <li style="padding: 0.5rem; background: #fff; border-radius: 0.25rem; margin-bottom: 0.25rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 0.25rem;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="font-weight: 600;">{{ student.user.name }}</span>
+                            <span style="font-size: 0.75rem; color: var(--secondary); font-weight: 500;">{{ student.dates }}</span>
+                        </div>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Roll No: {{ student.user.roll_no }}</span>
                     </li>
                     {% endfor %}
                 </ul>
             </div>
         {% else %}
-            <p style="text-align: center; color: var(--text-muted); padding: 2rem;">No students are absent today.</p>
+            <p style="text-align: center; color: var(--text-muted); padding: 2rem;">No students with approved leave.</p>
         {% endfor %}
     </div>
 </div>

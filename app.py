@@ -193,7 +193,10 @@ def dashboard():
     if role == 'Admin':
         teacher_count = User.query.filter_by(role='Teacher').count()
         student_count = User.query.filter_by(role='Student').count()
-        pending_leaves = LeaveRequest.query.filter_by(status='Pending', role='Teacher').count()
+        pending_leaves = LeaveRequest.query.filter(
+            ((LeaveRequest.role == 'Teacher') & (LeaveRequest.status == 'Pending')) |
+            (LeaveRequest.status == 'Forwarded to Admin')
+        ).count()
         return render_template('admin/dashboard.html', teacher_count=teacher_count, student_count=student_count, pending_leaves=pending_leaves)
     
     elif role == 'Teacher':
@@ -238,11 +241,11 @@ def manage_students():
 @app.route('/admin/leaves')
 def view_all_leaves():
     if session.get('role') != 'Admin': return redirect(url_for('login'))
-    # Admin views: 1. All Teacher leaves, 2. Student leaves forwarded to Admin
+    # Admin views: All Teacher leaves and ONLY Forwarded Student leaves (for action)
     leaves = LeaveRequest.query.filter(
         (LeaveRequest.role == 'Teacher') | 
         (LeaveRequest.status == 'Forwarded to Admin')
-    ).all()
+    ).order_by(LeaveRequest.created_at.desc()).all()
     return render_template('admin/leaves.html', leaves=leaves)
 
 @app.route('/admin/absentees')
@@ -256,19 +259,41 @@ def view_absentees():
     absent_students = {}
     
     for leave in approved_leaves:
-        if is_absent_today(leave.dates):
-            if leave.role == 'Teacher':
-                dept = leave.user.department
-                if dept not in absent_teachers: absent_teachers[dept] = []
-                absent_teachers[dept].append(leave.user)
-            else:
-                cls = leave.user.department # department field stores Class for students
-                if cls not in absent_students: absent_students[cls] = []
-                absent_students[cls].append(leave.user)
+        if leave.role == 'Teacher':
+            dept = leave.user.department
+            if dept not in absent_teachers: absent_teachers[dept] = []
+            absent_teachers[dept].append(leave)
+        else:
+            cls = leave.user.department # department field stores Class for students
+            if cls not in absent_students: absent_students[cls] = []
+            absent_students[cls].append(leave)
                 
     return render_template('admin/absentees.html', 
                             absent_teachers=absent_teachers, 
                             absent_students=absent_students)
+
+@app.route('/admin/reports')
+def leave_reports():
+    if session.get('role') != 'Admin': return redirect(url_for('login'))
+    
+    all_leaves = LeaveRequest.query.order_by(LeaveRequest.created_at.desc()).all()
+    
+    report_teachers = {}
+    report_students = {}
+    
+    for leave in all_leaves:
+        if leave.role == 'Teacher':
+            dept = leave.user.department or 'Unknown'
+            if dept not in report_teachers: report_teachers[dept] = []
+            report_teachers[dept].append(leave)
+        else:
+            cls = leave.user.department or 'Unknown'
+            if cls not in report_students: report_students[cls] = []
+            report_students[cls].append(leave)
+            
+    return render_template('admin/reports.html', 
+                            report_teachers=report_teachers, 
+                            report_students=report_students)
 
 @app.route('/admin/delete_user/<int:user_id>')
 def delete_user(user_id):
@@ -420,12 +445,14 @@ def update_leave(leave_id, status):
         
     flash(f'Leave updated to {status} successfully!', 'info')
     
-    # Real-time notification for User
-    socketio.emit('leave_status_changed', {
+    # Real-time notification for User and Admin
+    update_data = {
         'id': leave_id,
         'status': status,
-        'message': f"Your leave request has been {status}."
-    }, to=f"user_{leave.user_id}")
+        'message': f"Leave request for {leave.user.name} has been {status}."
+    }
+    socketio.emit('leave_status_changed', update_data, to=f"user_{leave.user_id}")
+    socketio.emit('leave_status_changed', update_data, to='admin_room')
     
     return redirect(request.referrer)
 
