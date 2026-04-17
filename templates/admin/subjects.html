@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Subjects - LeaveSystem{% endblock %}
+{% block page_title %}Curriculum Management{% endblock %}
+
+{% block content %}
+<div class="card-section" style="margin-bottom: 2rem;">
+    <h2 style="margin-bottom: 1.5rem; font-size: 1.25rem;">Add New Subject</h2>
+    <form action="{{ url_for('manage_subjects') }}" method="POST" style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 1rem; align-items: end;">
+        <div class="form-group">
+            <label>Select Class</label>
+            <select name="class_name" class="form-control">
+                <option value="">-- Choose Existing Class --</option>
+                {% for class_name in mapping.keys() %}
+                <option value="{{ class_name }}">{{ class_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Or Enter New Class Name</label>
+            <input type="text" name="new_class_name" class="form-control" placeholder="e.g. IVBCA">
+        </div>
+        <div class="form-group">
+            <label>Subject Name</label>
+            <input type="text" name="subject" class="form-control" placeholder="e.g. Python, AI, etc." required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="height: 48px; padding: 0 1.5rem;">
+            <i class="fas fa-plus"></i> Add Subject
+        </button>
+    </form>
+</div>
+
+<div class="grid-2" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5rem;">
+    {% for class_name, subjects in mapping.items() %}
+    <div class="card-section" style="background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+        <h3 style="color: var(--primary); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+            {{ class_name }}
+            <span class="badge" style="background: #e2e8f0; color: #475569; font-size: 0.75rem;">{{ subjects|length }} Subjects</span>
+        </h3>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+            {% for subject in subjects %}
+            <li style="padding: 0.75rem 0; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.95rem;">{{ subject }}</span>
+                <button onclick="deleteSubject('{{ class_name }}', '{{ subject }}')" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 0.25rem;">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function deleteSubject(className, subject) {
+    if (!confirm(`Are you sure you want to delete "${subject}" from ${className}?`)) return;
+    
+    try {
+        const res = await fetch('/api/delete_subject', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ class_name: className, subject: subject })
+        });
+        const data = await res.json();
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert('Error deleting subject.');
+        }
+    } catch (err) {
+        alert('Connection error.');
+    }
+}
+</script>
+{% endblock %}

@@ -503,11 +503,63 @@ def teacher_timetable():
                            all_subjects=all_subjects,
                            class_mapping=mapping)
 
+@app.route('/admin/subjects', methods=['GET', 'POST'])
+def manage_subjects():
+    if session.get('role') != 'Admin': return redirect(url_for('login'))
+    
+    mapping = get_class_subject_mapping()
+    
+    if request.method == 'POST':
+        class_name = request.form.get('class_name')
+        new_class_name = request.form.get('new_class_name', '').strip()
+        new_subject = request.form.get('subject').strip()
+        
+        # Use existing class if selected, otherwise use new class name
+        final_class = class_name if class_name else new_class_name
+        
+        if final_class and new_subject:
+            if final_class not in mapping:
+                mapping[final_class] = []
+            
+            if new_subject not in mapping[final_class]:
+                mapping[final_class].append(new_subject)
+                
+                # Save back to JSON
+                json_path = os.path.join(app.root_path, 'class_subjects.json')
+                with open(json_path, 'w') as f:
+                    json.dump(mapping, f, indent=2)
+                
+                flash(f'Subject "{new_subject}" added to {final_class}!', 'success')
+            else:
+                flash('Subject already exists for this class.', 'warning')
+        else:
+            flash('Please provide both Class Name and Subject.', 'danger')
+        return redirect(url_for('manage_subjects'))
+        
+    return render_template('admin/subjects.html', mapping=mapping)
+
+@app.route('/api/delete_subject', methods=['POST'])
+def delete_subject():
+    if session.get('role') != 'Admin': return jsonify({'success': False}), 403
+    data = request.json
+    class_name = data.get('class_name')
+    subject = data.get('subject')
+    
+    mapping = get_class_subject_mapping()
+    if class_name in mapping and subject in mapping[class_name]:
+        mapping[class_name].remove(subject)
+        json_path = os.path.join(app.root_path, 'class_subjects.json')
+        with open(json_path, 'w') as f:
+            json.dump(mapping, f, indent=2)
+        return jsonify({'success': True})
+    return jsonify({'success': False}), 400
+
 @app.route('/api/save_timetable', methods=['POST'])
 def save_timetable():
     if session.get('role') != 'Teacher': return jsonify({'success': False, 'message': 'Unauthorized'}), 403
     
     data = request.json
+    print(f"DEBUG: Received save_timetable request: {data}")
     teacher_id = session.get('user_id')
     day = data.get('day')
     try:
@@ -519,24 +571,60 @@ def save_timetable():
     if not day or not period:
         return jsonify({'success': False, 'message': 'Missing data'}), 400
 
-    # Determine class for the subject and get official casing
-    class_name = None
+    # 1. Determine Target Class
+    mapping = get_class_subject_mapping()
+    target_class = data.get('class_name') # Explicit selection from user
     official_subject = subject
-    if subject:
-        mapping = get_class_subject_mapping()
-        search_sub = subject.strip().lower()
-        for c_name, subjects in mapping.items():
-            for s in subjects:
-                if search_sub == s.strip().lower():
-                    class_name = c_name
-                    official_subject = s # Use the name as defined in JSON
-                    break
-            if class_name: break
     
-    # VALIDATION 1: Check if class already has a subject at this time
     if subject:
-        if not class_name:
-            return jsonify({'success': False, 'message': f'Subject "{subject}" is not in the curriculum list. Please use names like: Java, DBMS, AI...'}), 400
+        search_sub = subject.strip().lower()
+        
+        # 2. Try to auto-detect class or use mentor role
+        if not target_class:
+            for c_name, subjects in mapping.items():
+                for s in subjects:
+                    if search_sub == s.strip().lower():
+                        target_class = c_name
+                        official_subject = s
+                        break
+                if target_class: break
+        
+        # 3. If STILL no class detected, force use of teacher's mentored class
+        if not target_class:
+            mentors_path = os.path.join(app.root_path, 'mentors_data.json')
+            if os.path.exists(mentors_path):
+                with open(mentors_path, 'r') as f:
+                    mentors_data = json.load(f)
+                teacher_name = (session.get('name') or "").strip().lower()
+                for mentor_info in mentors_data:
+                    m1 = (mentor_info.get('mentor1') or "").strip().lower()
+                    m2 = (mentor_info.get('mentor2') or "").strip().lower()
+                    if m1 == teacher_name or m2 == teacher_name:
+                        target_class = mentor_info['class_name']
+                        break
+        
+        # 4. Final check: we MUST have a class to proceed
+        if not target_class:
+            return jsonify({'success': False, 'message': f'Could not determine class for "{subject}". Please contact Admin to add this subject.'}), 400
+            
+        # 5. Auto-add to curriculum if it's missing from target class
+        if target_class not in mapping: mapping[target_class] = []
+        if not any(s.strip().lower() == search_sub for s in mapping[target_class]):
+            mapping[target_class].append(subject)
+            json_path = os.path.join(app.root_path, 'class_subjects.json')
+            with open(json_path, 'w') as f:
+                json.dump(mapping, f, indent=2)
+            official_subject = subject
+            print(f"Auto-added {subject} to class {target_class}")
+        else:
+            # If it IS there, find the official casing
+            for s in mapping[target_class]:
+                if s.strip().lower() == search_sub:
+                    official_subject = s
+                    break
+
+        # Now we have final class_name and official_subject
+        class_name = target_class
             
         # Update search subjects to use official names for database query
         mapping = get_class_subject_mapping()

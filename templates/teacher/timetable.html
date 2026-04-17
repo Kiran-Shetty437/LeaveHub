@@ -25,14 +25,18 @@
                     {% if p == 5 %}
                         <td class="lunch-break">BREAK</td>
                     {% endif %}
-                    <td class="timetable-td" onclick="openEditModal('{{ day }}', {{ p }}, '{{ timetable_data.get(day, {}).get(p, '') }}')">
-                        <div class="timetable-cell editable">
+                    <td class="timetable-td edit-trigger" 
+                        data-day="{{ day }}" 
+                        data-period="{{ p }}" 
+                        data-subject="{{ timetable_data.get(day, {}).get(p, '') }}">
+                        <div class="timetable-cell editable" style="position: relative; min-height: 60px;">
                             {% if timetable_data.get(day, {}).get(p) %}
-                                <span class="subject-name">{{ timetable_data[day][p] }}</span>
-                                <span class="class-name" id="class-{{ day }}-{{ p }}">Loading...</span>
+                                <span class="subject-name" style="font-weight: 600; display: block;">{{ timetable_data[day][p] }}</span>
+                                <span class="class-name" id="class-{{ day }}-{{ p }}" style="font-size: 0.75rem; color: var(--primary); display: block; margin-top: 0.25rem;"></span>
                             {% else %}
-                                <span class="empty-text">---</span>
+                                <span class="empty-text" style="color: #cbd5e1;">---</span>
                             {% endif %}
+                            <i class="fas fa-pencil-alt edit-icon" style="position: absolute; top: 5px; right: 5px; font-size: 0.7rem; color: #94a3b8; opacity: 0.5;"></i>
                         </div>
                     </td>
                 {% endfor %}
@@ -58,9 +62,6 @@
                     <option value="{{ subject }}">
                     {% endfor %}
                 </datalist>
-                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">
-                    Tip: Enter a valid subject from the curriculum to auto-assign the class.
-                </p>
             </div>
             <div id="modalError" class="alert alert-danger" style="display: none; padding: 0.75rem; font-size: 0.8rem; margin-top: 1rem;"></div>
         </div>
@@ -87,14 +88,26 @@ function getClassFromSubject(subject) {
 }
 
 function openEditModal(day, period, subject) {
-    console.log(`Opening modal for ${day}, Period ${period}, Subject: ${subject}`);
+    console.log(`Opening modal: Day=${day}, Period=${period}, Subject=${subject}`);
     currentDay = day;
     currentPeriod = period;
-    document.getElementById('modalTitle').innerText = `Edit: ${day} - Period ${period}`;
-    document.getElementById('subjectInput').value = subject;
+    
+    const subjectInput = document.getElementById('subjectInput');
+    const classInput = document.getElementById('classInput');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalError = document.getElementById('modalError');
+    
+    modalTitle.innerText = `Edit: ${day} - Period ${period}`;
+    subjectInput.value = subject;
+    
     document.getElementById('editModal').style.display = 'block';
-    document.getElementById('modalError').style.display = 'none';
-    document.getElementById('subjectInput').focus();
+    modalError.style.display = 'none';
+    
+    // Explicitly ensure input is focused and interactive
+    setTimeout(() => {
+        subjectInput.focus();
+        subjectInput.select();
+    }, 100);
 }
 
 function closeModal() {
@@ -103,6 +116,7 @@ function closeModal() {
 
 async function saveCell() {
     const subject = document.getElementById('subjectInput').value.trim();
+    const className = document.getElementById('classInput').value;
     const errorDiv = document.getElementById('modalError');
     const saveBtn = document.getElementById('saveBtn');
     
@@ -123,13 +137,19 @@ async function saveCell() {
             })
         });
 
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Server error (${response.status}): ${errorText}`);
+        }
+
         const result = await response.json();
         console.log("Server response:", result);
 
         if (result.success) {
+            console.log("Save successful, reloading...");
             window.location.reload(); 
         } else {
-            errorDiv.innerText = result.message;
+            errorDiv.innerText = result.message || "An error occurred while saving.";
             errorDiv.style.display = 'block';
             saveBtn.disabled = false;
             saveBtn.innerText = 'Save Changes';
@@ -150,6 +170,17 @@ window.onclick = function(event) {
     }
 }
 
+// Handle clicks via event delegation
+document.addEventListener('click', (e) => {
+    const trigger = e.target.closest('.edit-trigger');
+    if (trigger) {
+        const day = trigger.getAttribute('data-day');
+        const period = trigger.getAttribute('data-period');
+        const subject = trigger.getAttribute('data-subject');
+        openEditModal(day, period, subject);
+    }
+});
+
 // Initialize class names for existing subjects
 document.addEventListener('DOMContentLoaded', () => {
     {% for day in days %}
@@ -157,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
             {% if timetable_data.get(day, {}).get(p) %}
                 (function() {
                     const el = document.getElementById('class-{{ day }}-{{ p }}');
-                    if (el) el.innerText = getClassFromSubject("{{ timetable_data[day][p] }}");
+                    if (el) el.innerText = getClassFromSubject({{ timetable_data[day][p] | tojson }});
                 })();
             {% endif %}
         {% endfor %}

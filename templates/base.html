@@ -61,6 +61,11 @@
                     <i class="fas fa-file-invoice"></i>
                     <span>Leave Reports</span>
                 </a>
+                <a href="{{ url_for('manage_subjects') }}"
+                    class="nav-item {% if request.path == url_for('manage_subjects') %}active{% endif %}">
+                    <i class="fas fa-book"></i>
+                    <span>Manage Subjects</span>
+                </a>
                 {% endif %}
 
                 {% if session.get('role') == 'Teacher' %}

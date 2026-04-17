@@ -1,5 +1,24 @@
 {
-  "IBCA": ["C Programming", "Discrete Mathematics", "Digital Electronics", "English", "Kannada/Hindi"],
-  "IIBCA": ["Java", "DBMS", "OS", "Data Structures", "Accountancy"],
-  "IIIBCA": ["Advanced Java", "AI", "WCMS", "Software Engineering", "Network Security"]
+  "IBCA": [
+    "C Programming",
+    "Discrete Mathematics",
+    "Digital Electronics",
+    "English",
+    "Kannada/Hindi",
+    "php"
+  ],
+  "IIBCA": [
+    "Java",
+    "DBMS",
+    "OS",
+    "Data Structures",
+    "Accountancy"
+  ],
+  "IIIBCA": [
+    "Advanced Java",
+    "AI",
+    "WCMS",
+    "Software Engineering",
+    "Network Security"
+  ]
 }
