@@ -1,73 +1,111 @@
 {% extends "base.html" %}
 
-{% block title %}Apply for Leave - LeaveSystem{% endblock %}
-{% block page_title %}Apply for Leave (Teacher Roll){% endblock %}
+{% block title %}Faculty Leave Request | LeaveHub{% endblock %}
+{% block page_title %}Faculty Absence Filing{% endblock %}
 
 {% block content %}
-<div class="form-container">
-    <form id="leaveForm" action="{{ url_for('apply_leave') }}" method="POST" enctype="multipart/form-data">
-        <div class="form-group">
-            <label for="dates">Leave Dates</label>
-            <input type="text" name="dates" id="dates" class="form-control" placeholder="DD-MM-YYYY or DD-MM-YYYY to DD-MM-YYYY" required>
-            <small style="color: var(--text-muted);">Format: 01-05-2024 or 01-05-2024 to 03-05-2024</small>
+<div style="max-width: 650px; margin: 0 auto;">
+    <!-- Form Component -->
+    <div class="glass-card animate-fade-in" style="padding: 3rem; background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.05), transparent);">
+        <div style="margin-bottom: 2.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1.5rem;">
+            <div style="font-size: 0.75rem; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">Faculty Portal</div>
+            <h2 style="font-size: 1.8rem; font-weight: 800; color: white; letter-spacing: -1px;">Leave Application</h2>
         </div>
-        <div class="form-group" id="timeGroup">
-            <label for="start_time">Requested Leave Start Time (for short/half-day leave)</label>
-            <input type="time" name="start_time" id="start_time" class="form-control">
-            <small style="color: var(--text-muted);">Note: For same-day leave, you must apply at least 1 hour in advance.</small>
+
+        <form id="leaveForm" action="{{ url_for('apply_leave') }}" method="POST" enctype="multipart/form-data">
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                
+                <div class="form-group">
+                    <label style="color: var(--text-muted); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px;">Leave Classification <span style="color: var(--primary);">*</span></label>
+                    <div style="position: relative;">
+                        <i class="fas fa-tags" style="position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--primary);"></i>
+                        <select name="leave_type" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 14px 14px 14px 50px; border-radius: 12px; color: white; width: 100%; font-size: 0.95rem; cursor: pointer;" required>
+                            <option value="" disabled selected>-- Choose Category --</option>
+                            <option value="Casual Leave">Casual Leave</option>
+                            <option value="Medical Leave">Medical Leave</option>
+                            <option value="Earned Leave">Earned Leave</option>
+                            <option value="Special Leave">Special Leave</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Multi-type Balance Guide -->
+                    <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
+                        {% for bal in user.balances %}
+                        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 8px; flex: 1; min-width: 100px; text-align: center;">
+                            <div style="font-size: 0.6rem; color: var(--text-muted); font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">{{ bal.leave_type[:2]|upper }}</div>
+                            <div style="font-size: 1.1rem; font-weight: 800; color: white;">{{ bal.balance }}</div>
+                        </div>
+                        {% else %}
+                        <div style="font-size: 0.75rem; color: var(--danger); font-weight: 600; font-style: italic; width: 100%;">
+                            <i class="fas fa-circle-exclamation"></i> No leave balances assigned.
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label style="color: var(--text-muted); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px;">Requested Dates <span style="color: var(--primary);">*</span></label>
+                    <div style="position: relative;">
+                        <i class="fas fa-calendar-day" style="position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--primary);"></i>
+                        <input type="text" name="dates" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 14px 14px 14px 50px; border-radius: 12px; color: white; width: 100%; font-size: 0.95rem;" placeholder="DD-MM-YYYY or DD-MM-YYYY to DD-MM-YYYY" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label style="color: var(--text-muted); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px;">Shift Start Time (Optional)</label>
+                    <div style="position: relative;">
+                        <i class="fas fa-clock-three" style="position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--primary);"></i>
+                        <input type="time" name="start_time" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 14px 14px 14px 50px; border-radius: 12px; color: white; width: 100%; font-size: 0.95rem;">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label style="color: var(--text-muted); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px;">Reasoning & Details <span style="color: var(--primary);">*</span></label>
+                    <textarea name="reason" rows="4" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 14px; border-radius: 12px; color: white; width: 100%; font-size: 1rem; resize: none;" placeholder="Provide details for administrative review..." required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label style="color: var(--text-muted); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px;">Supporting Documentation</label>
+                    <div onclick="document.getElementById('document').click()" style="background: rgba(255,255,255,0.02); border: 2px dashed rgba(255,255,255,0.05); padding: 2rem; border-radius: 12px; cursor: pointer; text-align: center; transition: 0.3s; position: relative;">
+                        <i class="fas fa-file-pdf" style="display: block; font-size: 1.5rem; color: var(--accent); margin-bottom: 10px;"></i>
+                        <span id="file-label" style="font-size: 0.9rem; color: var(--text-muted); font-weight: 600;">Click to upload medical leave or special duty documents</span>
+                        <input type="file" name="document" id="document" style="display: none;" accept=".pdf,.png,.jpg,.jpeg" onchange="updateFileLabel(this)">
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 15px; margin-top: 1.5rem;">
+                    <button type="submit" class="glow-button" style="flex: 2; justify-content: center;">
+                        File Application <i class="fas fa-check-circle"></i>
+                    </button>
+                    <a href="{{ url_for('dashboard') }}" class="glass-card" style="flex: 1; text-align: center; padding: 12px; border-radius: 50px; font-weight: 700; font-size: 0.9rem; color: var(--text-muted); text-decoration: none;">
+                        Cancel
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Emergency Box -->
+    <div class="glass-card animate-fade-in" style="margin-top: 2rem; background: rgba(239, 68, 68, 0.03); border-color: rgba(239, 68, 68, 0.1);">
+        <div style="display: flex; gap: 20px; align-items: center;">
+            <div style="width: 40px; height: 40px; background: rgba(239, 68, 68, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--danger); flex-shrink: 0;">
+                <i class="fas fa-phone-flip"></i>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.6;">
+                <strong style="color: var(--danger);">Emergency Protocol:</strong> If filing same-day leave within the 1-hour window, please <span style="color: white; font-weight: 700;">contact the Administrator</span> immediately for manual override.
+            </p>
         </div>
-        <div class="form-group">
-            <label for="reason">Reason for Leave</label>
-            <textarea name="reason" id="reason" class="form-control" rows="5" placeholder="Explain your reason clearly..." required></textarea>
-        </div>
-        <div class="form-group">
-            <label for="document">Attachment (Optional - PDF/Image)</label>
-            <input type="file" name="document" id="document" class="form-control" accept=".pdf,.png,.jpg,.jpeg">
-        </div>
-        <div style="display: flex; gap: 1rem;">
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-paper-plane"></i> Submit Request
-            </button>
-            <a href="{{ url_for('dashboard') }}" class="btn" style="background: #e2e8f0; color: var(--text-main);">Cancel</a>
-        </div>
-    </form>
+    </div>
 </div>
 
 <script>
-document.getElementById('leaveForm').onsubmit = function(e) {
-    const datesInput = document.getElementById('dates').value.trim();
-    // Regex for DD-MM-YYYY or DD-MM-YYYY to DD-MM-YYYY
-    const pattern = /^\d{2}-\d{2}-\d{4}( to \d{2}-\d{2}-\d{4})?$/;
-    
-    if (!pattern.test(datesInput)) {
-        alert("Invalid Date Pattern!\nPlease use: DD-MM-YYYY\nOr: DD-MM-YYYY to DD-MM-YYYY");
-        return false;
+function updateFileLabel(input) {
+    const label = document.getElementById('file-label');
+    if (input.files.length > 0) {
+        label.textContent = `Attached: ${input.files[0].name}`;
+        label.parentElement.style.borderColor = 'var(--success)';
+        label.style.color = 'var(--success)';
     }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    let startDateStr = datesInput;
-    if (datesInput.includes(' to ')) {
-        startDateStr = datesInput.split(' to ')[0];
-    }
-
-    // Convert DD-MM-YYYY to YYYY-MM-DD for JavaScript Date constructor
-    const parts = startDateStr.split('-');
-    const formattedStartDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
-    const startDate = new Date(formattedStartDate);
-
-    if (isNaN(startDate.getTime())) {
-        alert("Invalid Date value!");
-        return false;
-    }
-
-    if (startDate < today) {
-        alert("Error: Cannot apply for past dates!");
-        return false;
-    }
-
-    return true;
-};
+}
 </script>
 {% endblock %}

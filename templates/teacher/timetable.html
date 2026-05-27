@@ -1,45 +1,40 @@
 {% extends "base.html" %}
 
-{% block title %}Manage Timetable - LeaveSystem{% endblock %}
-{% block page_title %}Timetable Management{% endblock %}
+{% block title %}Schedule | LeaveHub{% endblock %}
+{% block page_title %}Teaching Curriculum Schedule{% endblock %}
 
 {% block content %}
-<div class="timetable-container">
-    <table class="timetable">
+<div class="glass-card animate-fade-in" style="padding: 1rem; margin-bottom: 2.5rem; overflow-x: auto;">
+    <table class="timetable" style="width: 100%; border-collapse: separate; border-spacing: 4px;">
         <thead>
             <tr>
-                <th>Day / Period</th>
+                <th style="background: rgba(255,255,255,0.05); color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Time Slot</th>
                 {% for p in periods %}
-                {% if p == 5 %}
-                <th class="lunch-header" style="min-width: 40px;">Lunch</th>
-                {% endif %}
-                <th>Period {{ p }}</th>
+                    {% if p == 5 %}
+                    <th style="background: rgba(250, 204, 21, 0.05); color: var(--warning); font-size: 0.7rem; font-weight: 800;">LUNCH</th>
+                    {% endif %}
+                    <th style="background: rgba(255,255,255,0.03); color: white; font-weight: 800; font-size: 0.8rem;">P{{ p }}</th>
                 {% endfor %}
             </tr>
         </thead>
         <tbody>
             {% for day in days %}
-            <tr style="height: 80px;">
-                <td class="day-cell">{{ day }}</td>
+            <tr>
+                <td style="background: rgba(99, 102, 241, 0.1); color: white; font-weight: 800; text-align: center; border-radius: 8px; font-size: 0.8rem; padding: 15px;">{{ day[:3] | upper }}</td>
                 {% for p in periods %}
-                {% if p == 5 %}
-                <td class="lunch-break" data-label="Lunch">BREAK</td>
-                {% endif %}
-                <td class="timetable-td edit-trigger" data-label="Period {{ p }}" data-day="{{ day }}"
-                    data-period="{{ p }}" data-subject="{{ timetable_data.get(day, {}).get(p, '') }}">
-                    <div class="timetable-cell editable" style="position: relative; min-height: 60px;">
-                        {% if timetable_data.get(day, {}).get(p) %}
-                        <span class="subject-name" style="font-weight: 600; display: block;">{{ timetable_data[day][p]
-                            }}</span>
-                        <span class="class-name"
-                            style="font-size: 0.75rem; color: var(--primary); display: block; margin-top: 0.25rem;">Checking...</span>
-                        {% else %}
-                        <span class="empty-text" style="color: #cbd5e1;">---</span>
-                        {% endif %}
-                        <i class="fas fa-pencil-alt edit-icon"
-                            style="position: absolute; top: 5px; right: 5px; font-size: 0.7rem; color: #94a3b8; opacity: 0.5;"></i>
-                    </div>
-                </td>
+                    {% if p == 5 %}
+                    <td style="background: rgba(250, 204, 21, 0.02); text-align: center; color: var(--warning); font-size: 0.6rem; font-weight: 800; letter-spacing: 2px;">RECESSS</td>
+                    {% endif %}
+                    <td class="timetable-td edit-trigger" data-day="{{ day }}" data-period="{{ p }}" data-subject="{{ timetable_data.get(day, {}).get(p, {}).get('subject', '') }}" data-class="{{ timetable_data.get(day, {}).get(p, {}).get('class_name', '') }}" style="cursor: pointer; transition: 0.3s; border-radius: 8px;">
+                        <div style="min-height: 80px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px; position: relative;">
+                            {% if timetable_data.get(day, {}).get(p) %}
+                                <div style="font-weight: 800; color: white; font-size: 0.85rem; text-align: center;">{{ timetable_data[day][p].subject }}</div>
+                                <div class="class-name" style="font-size: 0.65rem; color: var(--primary); font-weight: 700; margin-top: 4px; opacity: 0.8;">{{ timetable_data[day][p].class_name or '---' }}</div>
+                            {% else %}
+                                <div style="opacity: 0.1; font-size: 1.5rem;"><i class="fas fa-plus-circle"></i></div>
+                            {% endif %}
+                        </div>
+                    </td>
                 {% endfor %}
             </tr>
             {% endfor %}
@@ -48,187 +43,210 @@
 </div>
 
 {% if mentor_class %}
-<div class="curriculum-section"
-    style="margin-top: 3rem; background: white; padding: 2rem; border-radius: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+<div class="glass-card animate-fade-in" style="background: radial-gradient(circle at top right, rgba(139, 92, 246, 0.1), transparent); margin-bottom: 3rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1rem;">
         <div>
-            <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--text-main);">Class Curriculum: {{ mentor_class
-                }}</h2>
-            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">Subjects currently available
-                for this class.</p>
+            <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Curriculum Editor: {{ mentor_class }}</h3>
+            <p style="color: var(--text-muted); font-size: 0.8rem;">Define subjects authorized for your mentored batch.</p>
         </div>
-        <div
-            style="background: var(--primary); color: white; padding: 0.5rem 1rem; border-radius: 2rem; font-size: 0.75rem; font-weight: 700;">
-            Mentor View
-        </div>
+        <div class="status-badge approved" style="font-size: 0.65rem;">MENTOR OVERRIDE</div>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem;">
-        <div class="add-sub-card"
-            style="border: 2px dashed #e2e8f0; border-radius: 1rem; padding: 1.5rem; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; min-height: 120px;"
-            onclick="document.getElementById('quickAddInput').focus()">
-            <form action="{{ url_for('manage_subjects') }}" method="POST" style="width: 100%; text-align: center;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">
+        <div class="glass-card" style="border: 2px dashed rgba(255,255,255,0.05); padding: 1.5rem; text-align: center;">
+            <form action="{{ url_for('manage_subjects') }}" method="POST">
                 <input type="hidden" name="class_name" value="{{ mentor_class }}">
-                <input type="text" id="quickAddInput" name="subject" placeholder="New Subject..."
-                    style="width: 100%; border: none; background: transparent; text-align: center; font-weight: 600; outline: none; margin-bottom: 0.5rem;"
-                    required>
-                <button type="submit" class="btn btn-primary" style="padding: 0.4rem 1rem; font-size: 0.75rem;"><i
-                        class="fas fa-plus"></i> Add Subject</button>
+                <input type="text" name="subject" placeholder="New Catalog Item..." style="background: transparent; border: none; border-bottom: 1px solid var(--primary); color: white; width: 100%; text-align: center; font-weight: 700; outline: none; margin-bottom: 1rem;" required>
+                <button type="submit" class="status-badge" style="background: var(--primary); color: white; border: none; cursor: pointer; padding: 6px 15px;">ADD UNIT</button>
             </form>
         </div>
 
         {% set current_class_subs = class_mapping.get(mentor_class, []) %}
         {% for sub in current_class_subs %}
-        <div class="sub-card"
-            style="background: #f8fafc; border-radius: 1rem; padding: 1.25rem; border: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-weight: 600; font-size: 0.9rem; color: var(--text-main);">{{ sub }}</span>
-            <i class="fas fa-check-circle" style="color: var(--success); font-size: 0.8rem; opacity: 0.5;"></i>
+        <div class="glass-card" style="background: rgba(255,255,255,0.02); padding: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 700; color: white; font-size: 0.85rem;">{{ sub }}</span>
+            <i class="fas fa-square-check" style="color: var(--success); opacity: 0.4;"></i>
         </div>
         {% endfor %}
     </div>
 </div>
 {% endif %}
 
-<div class="alert alert-info" style="margin-top: 2rem; border-radius: 1rem;">
-    <i class="fas fa-info-circle"></i>
-    <span>Tip: Click any cell to write or edit subjects. The system will automatically link them to the correct
-        class.</span>
-</div>
-
-<!-- Edit Modal -->
-<div id="editModal" class="modal" style="display: none;">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 id="modalTitle">Edit Period</h3>
-            <span class="close-modal" onclick="closeModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <div class="form-group">
-                <label for="subjectInput">Enter Subject Name</label>
-                <input type="text" id="subjectInput" class="form-control" list="subjectList"
-                    placeholder="e.g. Java, DBMS..." autocomplete="off">
-                <datalist id="subjectList">
-                    {% for subject in all_subjects %}
-                    <option value="{{ subject }}">
-                        {% endfor %}
-                </datalist>
-            </div>
-            <div id="modalError" class="alert alert-danger"
-                style="display: none; padding: 0.75rem; font-size: 0.8rem; margin-top: 1rem;"></div>
-        </div>
-        <div class="timetable-actions"
-            style="padding: 1.5rem; display: flex; justify-content: flex-end; gap: 1rem; border-top: 1px solid var(--border);">
-            <button class="btn" style="background: #e2e8f0;" onclick="closeModal()">Cancel</button>
-            <button class="btn btn-primary" onclick="saveCell()" id="saveBtn">Save Changes</button>
+<!-- Modal -->
+<div id="editModal" class="glass-card" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; max-width: 400px; z-index: 9999; padding: 2.5rem; background: rgba(10, 15, 30, 0.98); box-shadow: 0 0 100px rgba(0,0,0,0.8); border: 1px solid var(--primary);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <h3 id="modalTitle" style="font-weight: 800; color: white; letter-spacing: -1px;">Edit Slot</h3>
+        <button onclick="closeModal()" style="background: none; border: none; color: var(--text-muted); cursor: pointer;"><i class="fas fa-times"></i></button>
+    </div>
+    
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <div class="form-group">
+            <label style="color: var(--text-muted); font-size: 0.75rem; font-weight: 800; text-transform: uppercase;">Assign Curricular Subject</label>
+            <input type="text" id="subjectInput" class="form-control" list="subjectList" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 12px; border-radius: 12px; width: 100%;" placeholder="e.g. C Programming, English...">
+            <datalist id="subjectList">
+                {% for subject in all_subjects %}
+                <option value="{{ subject }}">
+                {% endfor %}
+            </datalist>
+            <p style="font-size: 0.65rem; color: var(--text-muted); margin-top: 8px;">The batch/class will be auto-detected.</p>
         </div>
     </div>
+
+    <div style="display: flex; flex-direction: column; gap: 1rem; margin-top: 2.5rem;">
+        <div style="display: flex; gap: 1rem;">
+            <button type="button" class="glow-button" id="saveBtn" style="flex: 1; justify-content: center;">SAVE</button>
+            <button type="button" class="glass-card" id="cancelBtn" style="flex: 1; padding: 12px; border-radius: 50px; font-weight: 700; color: var(--text-muted); cursor: pointer; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);">CANCEL</button>
+        </div>
+        <button type="button" id="removeBtn" style="display: none; width: 100%; padding: 12px; border-radius: 50px; font-weight: 800; font-size: 0.8rem; color: var(--danger); cursor: pointer; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); letter-spacing: 1px; text-transform: uppercase;">
+            <i class="fas fa-trash-can" style="margin-right: 8px;"></i> REMOVE
+        </button>
+    </div>
+    
+    <div id="modalError" style="display: none; color: var(--danger); font-size: 0.75rem; font-weight: 700; margin-top: 1.5rem; text-align: center; background: rgba(239, 68, 68, 0.08); padding: 10px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.15);"></div>
 </div>
 
-<!-- Store mapping cleanly in HTML -->
 <meta id="class-mapping-data" data-mapping="{{ class_mapping | tojson | forceescape }}">
 
 <script>
     let currentDay, currentPeriod;
+    let removeConfirmActive = false;
+    let removeTimeout;
+    
     const mappingMeta = document.getElementById('class-mapping-data');
     const classMapping = mappingMeta && mappingMeta.dataset.mapping ? JSON.parse(mappingMeta.dataset.mapping) : {};
 
-    function getClassFromSubject(subject) {
-        if (!subject) return '';
-        const searchSub = subject.trim().toLowerCase();
-        for (const [className, subjects] of Object.entries(classMapping)) {
-            if (subjects.some(s => s.trim().toLowerCase() === searchSub)) return className;
+    function openEditModal(day, period, subject, className) {
+        currentDay = day; currentPeriod = period;
+        document.getElementById('modalTitle').innerText = `${day} : Period ${period}`;
+        document.getElementById('subjectInput').value = subject || '';
+        
+        // Reset state
+        resetRemoveButton();
+        document.getElementById('modalError').style.display = 'none';
+        
+        // Show Remove button only if there's an existing subject
+        if (subject && subject.trim() !== '') {
+            document.getElementById('removeBtn').style.display = 'block';
+        } else {
+            document.getElementById('removeBtn').style.display = 'none';
         }
-        return '';
-    }
-
-    function openEditModal(day, period, subject) {
-        currentDay = day;
-        currentPeriod = period;
-
-        const subjectInput = document.getElementById('subjectInput');
-        const modalTitle = document.getElementById('modalTitle');
-        const modalError = document.getElementById('modalError');
-
-        modalTitle.innerText = `Edit: ${day} - Period ${period}`;
-        subjectInput.value = subject;
-
+        
         document.getElementById('editModal').style.display = 'block';
-        modalError.style.display = 'none';
-
-        setTimeout(() => {
-            subjectInput.focus();
-            subjectInput.select();
-        }, 100);
     }
 
     function closeModal() {
         document.getElementById('editModal').style.display = 'none';
     }
 
-    async function saveCell() {
+    function showModalError(msg) {
+        const errEl = document.getElementById('modalError');
+        errEl.innerText = msg;
+        errEl.style.display = 'block';
+        setTimeout(() => {
+            errEl.style.display = 'none';
+        }, 4000);
+    }
+
+    function resetRemoveButton() {
+        removeConfirmActive = false;
+        if (removeTimeout) clearTimeout(removeTimeout);
+        const removeBtn = document.getElementById('removeBtn');
+        removeBtn.disabled = false;
+        removeBtn.innerHTML = '<i class="fas fa-trash-can" style="margin-right: 8px;"></i> REMOVE';
+        removeBtn.style.background = 'rgba(239, 68, 68, 0.08)';
+        removeBtn.style.borderColor = 'rgba(239, 68, 68, 0.25)';
+    }
+
+    // Cancel Button: Close the modal
+    document.getElementById('cancelBtn').addEventListener('click', () => {
+        closeModal();
+    });
+
+    // Save Button: Save the cell value
+    document.getElementById('saveBtn').addEventListener('click', async () => {
         const subject = document.getElementById('subjectInput').value.trim();
-        const errorDiv = document.getElementById('modalError');
         const saveBtn = document.getElementById('saveBtn');
-
-        errorDiv.style.display = 'none';
-        saveBtn.disabled = true;
-        saveBtn.innerText = 'Saving...';
-
+        saveBtn.innerText = 'SAVING...';
+        
         try {
-            const response = await fetch('/api/save_timetable', {
+            const res = await fetch('/api/save_timetable', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    day: currentDay,
-                    period: currentPeriod,
+                body: JSON.stringify({ 
+                    day: currentDay, 
+                    period: currentPeriod, 
                     subject: subject
                 })
             });
-
-            const result = await response.json();
-            if (result.success) {
+            const data = await res.json();
+            if (data.success) {
                 window.location.reload();
             } else {
-                errorDiv.innerText = result.message || "An error occurred.";
-                errorDiv.style.display = 'block';
-                saveBtn.disabled = false;
-                saveBtn.innerText = 'Save Changes';
+                showModalError(data.message || "Failed to save schedule.");
+            }
+        } catch (e) { 
+            showModalError("Gateway Error."); 
+        } finally {
+            saveBtn.innerText = 'SAVE';
+        }
+    });
+
+    // Remove Button: Clear subject with custom inline confirmation state
+    document.getElementById('removeBtn').addEventListener('click', async () => {
+        const removeBtn = document.getElementById('removeBtn');
+        
+        if (!removeConfirmActive) {
+            // First Click: request confirmation
+            removeConfirmActive = true;
+            removeBtn.innerHTML = '<i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i> CLICK AGAIN TO CONFIRM';
+            removeBtn.style.background = 'rgba(239, 68, 68, 0.2)';
+            removeBtn.style.borderColor = 'rgba(239, 68, 68, 0.6)';
+            
+            // Auto reset confirmation after 3 seconds
+            removeTimeout = setTimeout(() => {
+                resetRemoveButton();
+            }, 3000);
+            return;
+        }
+        
+        // Second Click: Execute remove
+        if (removeTimeout) clearTimeout(removeTimeout);
+        removeBtn.innerText = 'REMOVING...';
+        removeBtn.disabled = true;
+        
+        try {
+            const res = await fetch('/api/save_timetable', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    day: currentDay, 
+                    period: currentPeriod, 
+                    subject: '' // Empty string to clear
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.reload();
+            } else {
+                showModalError(data.message || "Failed to remove subject.");
+                resetRemoveButton();
             }
         } catch (e) {
-            errorDiv.innerText = "Connection error.";
-            errorDiv.style.display = 'block';
-            saveBtn.disabled = false;
-            saveBtn.innerText = 'Save Changes';
+            showModalError("Gateway Error.");
+            resetRemoveButton();
         }
-    }
+    });
 
-    // Close modal if clicked outside
-    window.onclick = function (event) {
-        if (event.target == document.getElementById('editModal')) closeModal();
-    }
-
-    // Handle clicks via event delegation
+    // Open Modal when cell is clicked
     document.addEventListener('click', (e) => {
         const trigger = e.target.closest('.edit-trigger');
         if (trigger) {
-            const day = trigger.getAttribute('data-day');
-            const period = trigger.getAttribute('data-period');
-            const subject = trigger.getAttribute('data-subject');
-            openEditModal(day, period, subject);
+            openEditModal(trigger.dataset.day, trigger.dataset.period, trigger.dataset.subject, trigger.dataset.class);
         }
     });
-
-    // Initialize class names for existing subjects
-    document.addEventListener('DOMContentLoaded', () => {
-        document.querySelectorAll('.timetable-td').forEach(cell => {
-            const subject = cell.dataset.subject;
-            if (subject) {
-                const classSpan = cell.querySelector('.class-name');
-                if (classSpan) {
-                    classSpan.innerText = getClassFromSubject(subject);
-                }
-            }
-        });
-    });
 </script>
+
+<style>
+.timetable-td:hover { background: rgba(99, 102, 241, 0.05) !important; box-shadow: inset 0 0 0 1px var(--primary); }
+</style>
 {% endblock %}

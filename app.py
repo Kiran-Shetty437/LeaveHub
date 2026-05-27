@@ -3,7 +3,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail, Message
 from flask_socketio import SocketIO, emit, join_room
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 import json
 from werkzeug.utils import secure_filename
@@ -19,6 +19,7 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'sqlite:///database_v2.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.path.join('static', 'uploads')
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
 
 # Email Configuration
@@ -72,6 +73,31 @@ def is_absent_today(date_str):
         today_str = today.strftime('%d-%m-%Y')
         return today_str in date_str
 
+def get_effective_status(leave):
+    """
+    Returns 'Not Approved' if the leave is still Pending or Forwarded but the date has passed.
+    """
+    if leave.status not in ['Pending', 'Forwarded to Admin']:
+        return leave.status
+        
+    from datetime import date
+    today = date.today()
+    try:
+        dates_str = leave.dates.lower()
+        if ' to ' in dates_str:
+            end_str = dates_str.split('to')[1].strip()
+        else:
+            end_str = dates_str.strip()
+        
+        # Consistent parsing with DD-MM-YYYY
+        end_date = datetime.strptime(end_str, '%d-%m-%Y').date()
+        if today > end_date:
+            return "Not Approved (Expired)"
+    except Exception as e:
+        print(f"Error checking leave expiration for ID {leave.id}: {e}")
+        
+    return leave.status
+
 db = SQLAlchemy(app)
 
 # Models
@@ -86,6 +112,20 @@ class User(db.Model):
     phone = db.Column(db.String(20))
     dob = db.Column(db.String(20))
     roll_no = db.Column(db.String(50))
+    is_hod = db.Column(db.Boolean, default=False)
+
+class Settings(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(50), unique=True, nullable=False)
+    value = db.Column(db.String(200))
+
+class LeaveBalance(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    leave_type = db.Column(db.String(50), nullable=False)
+    balance = db.Column(db.Integer, default=0)
+    
+    user = db.relationship('User', backref=db.backref('balances', lazy=True))
 
 class LeaveRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -93,12 +133,13 @@ class LeaveRequest(db.Model):
     role = db.Column(db.String(20), nullable=False)
     reason = db.Column(db.Text, nullable=False)
     dates = db.Column(db.String(100), nullable=False)
-    start_time = db.Column(db.String(20)) # Added for same-day time checks
-    document_path = db.Column(db.String(200)) # Path to uploaded file
-    status = db.Column(db.String(20), default='Pending') # Pending, Approved, Rejected
+    leave_type = db.Column(db.String(50))
+    start_time = db.Column(db.String(20))
+    document_path = db.Column(db.String(200))
+    status = db.Column(db.String(20), default='Pending')
+    remark = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Relationship to user
     user = db.relationship('User', backref=db.backref('leaves', lazy=True))
 
 class TeacherTimetable(db.Model):
@@ -107,12 +148,130 @@ class TeacherTimetable(db.Model):
     day = db.Column(db.String(20), nullable=False) # Monday, Tuesday, etc.
     period = db.Column(db.Integer, nullable=False) # 1, 2, 3, etc.
     subject = db.Column(db.String(100), nullable=False)
+    class_name = db.Column(db.String(50)) # The class this period belongs to
     
     teacher = db.relationship('User', backref=db.backref('timetable', lazy=True))
+
+class Attendance(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    subject = db.Column(db.String(100), nullable=False)
+    total_classes = db.Column(db.Integer, default=0)
+    attended_classes = db.Column(db.Integer, default=0)
+    month = db.Column(db.String(20), nullable=False) # e.g., "April 2026"
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    student = db.relationship('User', backref=db.backref('attendance_records', lazy=True))
+
+class TeacherSubject(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    subject = db.Column(db.String(100), nullable=False)
+    
+    teacher = db.relationship('User', backref=db.backref('assigned_subjects', lazy=True))
+
 
 # Create Database and Admin
 with app.app_context():
     db.create_all()
+
+    # DB Schema Update: Run BEFORE user sync or any queries so new columns exist
+    try:
+        from sqlalchemy import text
+        with db.engine.connect() as conn:
+            # Check and add 'is_hod' to user table
+            try:
+                conn.execute(text("ALTER TABLE user ADD COLUMN is_hod BOOLEAN DEFAULT 0"))
+                conn.commit()
+                print("Added 'is_hod' column to user table.")
+            except: pass
+
+            # Check and add 'remark'
+            try:
+                conn.execute(text("ALTER TABLE leave_request ADD COLUMN remark TEXT"))
+                conn.commit()
+                print("Added 'remark' column to leave_request table.")
+            except: pass
+            
+            # Check and add 'start_time'
+            try:
+                conn.execute(text("ALTER TABLE leave_request ADD COLUMN start_time TEXT"))
+                conn.commit()
+                print("Added 'start_time' column to leave_request table.")
+            except: pass
+
+            # 1. LeaveRequest Updates
+            for col in ['remark', 'start_time', 'leave_type']:
+                try:
+                    conn.execute(text(f"ALTER TABLE leave_request ADD COLUMN {col} TEXT"))
+                    conn.commit()
+                    print(f"Added '{col}' to leave_request.")
+                except: pass
+            
+            # 2. TeacherTimetable Updates
+            try:
+                conn.execute(text("ALTER TABLE teacher_timetable ADD COLUMN class_name TEXT"))
+                conn.commit()
+                print("Added 'class_name' to teacher_timetable.")
+            except: pass
+
+            # 3. Attendance Table
+            try:
+                conn.execute(text("CREATE TABLE IF NOT EXISTS attendance (id INTEGER PRIMARY KEY, student_id INTEGER, subject TEXT, total_classes INTEGER, attended_classes INTEGER, month TEXT, last_updated DATETIME)"))
+                conn.commit()
+                try: # Ensure month column exists
+                    conn.execute(text("ALTER TABLE attendance ADD COLUMN month TEXT"))
+                    conn.commit()
+                except: pass
+            except: pass
+
+            # 4. New Management Tables
+            try:
+                conn.execute(text("CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY, key TEXT UNIQUE, value TEXT)"))
+                conn.execute(text("CREATE TABLE IF NOT EXISTS leave_balance (id INTEGER PRIMARY KEY, user_id INTEGER, leave_type TEXT, balance INTEGER, FOREIGN KEY(user_id) REFERENCES user(id))"))
+                conn.commit()
+                print("Management tables ensured.")
+            except: pass
+
+    except Exception as e:
+        print(f"Schema update error: {e}")
+    
+    # Sync users from JSON (AFTER schema migration, BEFORE queries)
+    json_path = os.path.join(app.root_path, 'users_data.json')
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, 'r') as f:
+                data = json.load(f)
+            
+            # safer sync: upsert instead of delete all (to preserve IDs and relations)
+            existing_usernames = {u.username for u in User.query.all()}
+            
+            for user_data in data:
+                if user_data['username'] not in existing_usernames:
+                    new_user = User(
+                        name=user_data['name'],
+                        role=user_data['role'],
+                        username=user_data['username'],
+                        password=user_data['password'],
+                        department=user_data['department'],
+                        email=user_data.get('email'),
+                        phone=user_data.get('phone'),
+                        dob=user_data.get('dob'),
+                        roll_no=user_data.get('roll_no'),
+                        is_hod=user_data.get('is_hod', False)
+                    )
+                    db.session.add(new_user)
+                else:
+                    u = User.query.filter_by(username=user_data['username']).first()
+                    if u:
+                        u.is_hod = user_data.get('is_hod', False)
+            
+            db.session.commit()
+            print("Successfully synchronized new users from JSON.")
+        except Exception as e:
+            print(f"Error syncing JSON: {e}")
+            db.session.rollback()
+
     # Check if admin exists
     admin = User.query.filter_by(username='admin').first()
     if not admin:
@@ -120,37 +279,9 @@ with app.app_context():
         db.session.add(admin)
         db.session.commit()
     
-    # Always sync users from JSON on startup to keep data fresh
-    import json
-    json_path = os.path.join(app.root_path, 'users_data.json')
-    if os.path.exists(json_path):
-        try:
-            with open(json_path, 'r') as f:
-                data = json.load(f)
-            
-            # Clear existing non-admin users to remove "fake" or old data
-            # This ensures the database EXACTLY matches the JSON file
-            User.query.filter(User.role != 'Admin').delete()
-            
-            for user_data in data:
-                new_user = User(
-                    name=user_data['name'],
-                    role=user_data['role'],
-                    username=user_data['username'],
-                    password=user_data['password'],
-                    department=user_data['department'],
-                    email=user_data.get('email'),
-                    phone=user_data.get('phone'),
-                    dob=user_data.get('dob'),
-                    roll_no=user_data.get('roll_no')
-                )
-                db.session.add(new_user)
-            
-            db.session.commit()
-            print("Successfully synchronized users from JSON (Clean Sync).")
-        except Exception as e:
-            print(f"Error syncing JSON: {e}")
-            db.session.rollback()
+    def inject_helpers():
+        return dict(get_effective_status=get_effective_status)
+    app.context_processor(inject_helpers)
 
 # Routes
 @app.route('/')
@@ -172,6 +303,7 @@ def login():
             session['role'] = user.role
             session['name'] = user.name
             session['department'] = user.department
+            session['is_hod'] = user.is_hod or False
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid credentials!', 'danger')
@@ -190,15 +322,35 @@ def dashboard():
     if user:
         session['department'] = user.department
         session['name'] = user.name
+        session['is_hod'] = user.is_hod or False
     
     if role == 'Admin':
         teacher_count = User.query.filter_by(role='Teacher').count()
         student_count = User.query.filter_by(role='Student').count()
-        pending_leaves = LeaveRequest.query.filter(
+        all_pending = LeaveRequest.query.filter(
             ((LeaveRequest.role == 'Teacher') & (LeaveRequest.status == 'Pending')) |
             (LeaveRequest.status == 'Forwarded to Admin')
-        ).count()
-        return render_template('admin/dashboard.html', teacher_count=teacher_count, student_count=student_count, pending_leaves=pending_leaves)
+        ).all()
+        
+        pending_leaves = 0
+        yesterday = (datetime.now() - timedelta(days=1)).date()
+        end_date = (datetime.now() + timedelta(days=10)).date()
+        for leave in all_pending:
+            try:
+                if 'to' in leave.dates.lower():
+                    start_str = leave.dates.lower().split('to')[0].strip()
+                else:
+                    start_str = leave.dates.strip()
+                leave_start = datetime.strptime(start_str, '%d-%m-%Y').date()
+                if yesterday <= leave_start <= end_date:
+                    pending_leaves += 1
+            except:
+                pending_leaves += 1
+                
+        return render_template('admin/dashboard.html', 
+                             teacher_count=teacher_count, 
+                             student_count=student_count, 
+                             pending_leaves=pending_leaves)
     
     elif role == 'Teacher':
         # Find mentored classes for this teacher
@@ -220,12 +372,61 @@ def dashboard():
                                 .filter(LeaveRequest.status == 'Pending', LeaveRequest.role == 'Student')\
                                 .filter(User.department.in_(mentored_classes)).count() if mentored_classes else 0
                                 
+        # Recent Student Absences (Current + 3 days Post-Leave)
+        active_student_absences = []
+        if mentored_classes:
+            all_approved = LeaveRequest.query.join(User, LeaveRequest.user_id == User.id)\
+                            .filter(LeaveRequest.status == 'Approved', LeaveRequest.role == 'Student')\
+                            .filter(User.department.in_(mentored_classes)).all()
+            
+            now_date = datetime.now().date()
+            
+            for leave in all_approved:
+                # Parse last date of leave
+                try:
+                    if ' to ' in leave.dates:
+                        end_str = leave.dates.split(' to ')[1].strip()
+                    else:
+                        end_str = leave.dates.strip()
+                    
+                    end_dt = datetime.strptime(end_str, '%d-%m-%Y').date()
+                    # Rule: Show until 3 days after last date
+                    if now_date <= (end_dt + timedelta(days=3)):
+                        active_student_absences.append(leave)
+                except:
+                    continue
+
         my_leaves = LeaveRequest.query.filter_by(user_id=session['user_id']).all()
-        return render_template('teacher/dashboard.html', pending_student_leaves=pending_student_leaves, my_leaves=my_leaves)
+        return render_template('teacher/dashboard.html', 
+                               pending_student_leaves=pending_student_leaves, 
+                               my_leaves=my_leaves,
+                               active_student_absences=active_student_absences)
     
     elif role == 'Student':
         my_leaves = LeaveRequest.query.filter_by(user_id=session['user_id']).all()
-        return render_template('student/dashboard.html', my_leaves=my_leaves)
+        now = datetime.now()
+        for leave in my_leaves:
+            leave.contact_teacher = False
+            if leave.status == 'Pending':
+                try:
+                    # Parse the start date of the leave
+                    if ' to ' in leave.dates.lower():
+                        start_str = leave.dates.lower().split('to')[0].strip()
+                    else:
+                        start_str = leave.dates.strip()
+                    
+                    leave_start_dt = datetime.strptime(start_str, '%d-%m-%Y')
+                    cutoff_time = datetime.strptime("09:00:00", "%H:%M:%S").time()
+                    
+                    # Rule: If today is >= leave date AND current time >= 9:00 AM
+                    if now.date() > leave_start_dt.date():
+                        leave.contact_teacher = True
+                    elif now.date() == leave_start_dt.date() and now.time() >= cutoff_time:
+                        leave.contact_teacher = True
+                except:
+                    pass
+                    
+        return render_template('student/dashboard.html', my_leaves=my_leaves, now=now)
         
     return redirect(url_for('login'))
 
@@ -273,15 +474,118 @@ def manage_students():
     students = User.query.filter_by(role='Student').all()
     return render_template('admin/students.html', students=students)
 
+@app.route('/admin/watchlist')
+def admin_watchlist():
+    if session.get('role') != 'Admin': return redirect(url_for('login'))
+    
+    current_month = datetime.now().strftime('%B %Y')
+    filter_month = request.args.get('month', current_month)
+    
+    # Get available months
+    available_months_query = db.session.query(Attendance.month).distinct().all()
+    months = sorted(list(set([m[0] for m in available_months_query if m[0] is not None])))
+    if current_month not in months:
+        months.append(current_month)
+        
+    low_attendance_students = []
+    students = User.query.filter_by(role='Student').all()
+    
+    mentors_map = {}
+    try:
+        mentors_path = os.path.join(app.root_path, 'mentors_data.json')
+        if os.path.exists(mentors_path):
+            with open(mentors_path, 'r') as f:
+                mentors_data = json.load(f)
+                for item in mentors_data:
+                    mentors_map[item['class_name']] = f"{item['mentor1']} / {item['mentor2']}"
+    except: pass
+
+    for student in students:
+        records = Attendance.query.filter_by(student_id=student.id, month=filter_month).all()
+        total_held = sum(r.total_classes for r in records)
+        total_att = sum(r.attended_classes for r in records)
+        
+        if total_held > 0:
+            pct = (total_att / total_held) * 100
+            if pct < 70:
+                low_attendance_students.append({
+                    'name': student.name,
+                    'class': student.department,
+                    'mentor': mentors_map.get(student.department, 'Not Assigned'),
+                    'percentage': round(pct, 1)
+                })
+                
+    # Check for missing attendance by teachers for the filter_month
+    missing_attendance = []
+    teachers = User.query.filter_by(role='Teacher').all()
+    
+    for teacher in teachers:
+        timetables = TeacherTimetable.query.filter_by(teacher_id=teacher.id).all()
+        assigned = set()
+        for t in timetables:
+            if t.class_name and t.subject:
+                assigned.add((t.class_name, t.subject))
+                
+        missed = []
+        for cls_name, subj in assigned:
+            student_ids = [s.id for s in User.query.filter_by(role='Student', department=cls_name).all()]
+            if not student_ids:
+                continue
+                
+            record_exists = Attendance.query.filter(
+                Attendance.student_id.in_(student_ids),
+                Attendance.subject == subj,
+                Attendance.month == filter_month,
+                Attendance.total_classes > 0
+            ).first()
+            
+            if not record_exists:
+                missed.append({'class': cls_name, 'subject': subj})
+                
+        if missed:
+            missing_attendance.append({
+                'teacher_name': teacher.name,
+                'email': teacher.email or 'N/A',
+                'phone': teacher.phone or 'N/A',
+                'missed': missed
+            })
+                
+    return render_template('admin/watchlist.html', 
+                         low_attendance=low_attendance_students,
+                         missing_attendance=missing_attendance,
+                         months=months,
+                         filter_month=filter_month)
+
 @app.route('/admin/leaves')
 def view_all_leaves():
     if session.get('role') != 'Admin': return redirect(url_for('login'))
     # Admin views: All Teacher leaves and ONLY Forwarded Student leaves (for action)
-    leaves = LeaveRequest.query.filter(
+    all_leaves = LeaveRequest.query.filter(
         (LeaveRequest.role == 'Teacher') | 
         (LeaveRequest.status == 'Forwarded to Admin')
     ).order_by(LeaveRequest.created_at.desc()).all()
-    return render_template('admin/leaves.html', leaves=leaves)
+    
+    filtered_leaves = []
+    yesterday = (datetime.now() - timedelta(days=1)).date()
+    end_date = (datetime.now() + timedelta(days=10)).date()
+    
+    for leave in all_leaves:
+        try:
+            if 'to' in leave.dates.lower():
+                start_str = leave.dates.lower().split('to')[0].strip()
+            else:
+                start_str = leave.dates.strip()
+            
+            leave_start = datetime.strptime(start_str, '%d-%m-%Y').date()
+            if yesterday <= leave_start <= end_date:
+                filtered_leaves.append(leave)
+        except:
+            # If dates can't be parsed, include to be safe
+            filtered_leaves.append(leave)
+            
+    info_message = f"Showing requests for leave dates between {yesterday.strftime('%d-%m-%Y')} and {end_date.strftime('%d-%m-%Y')}."
+    
+    return render_template('admin/leaves.html', leaves=filtered_leaves, info_message=info_message)
 
 @app.route('/admin/absentees')
 def view_absentees():
@@ -311,12 +615,42 @@ def view_absentees():
 def leave_reports():
     if session.get('role') != 'Admin': return redirect(url_for('login'))
     
+    filter_date = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+    filter_status = request.args.get('status', '')
+    
     all_leaves = LeaveRequest.query.order_by(LeaveRequest.created_at.desc()).all()
     
     report_teachers = {}
     report_students = {}
     
     for leave in all_leaves:
+            
+        # Date Filter (Leaves occurring on that date)
+        if filter_date:
+            try:
+                target_dt = datetime.strptime(filter_date, '%Y-%m-%d').date()
+                dates_str = leave.dates.lower()
+                is_match = False
+                if 'to' in dates_str:
+                    parts = dates_str.split('to')
+                    start_dt = datetime.strptime(parts[0].strip(), '%d-%m-%Y').date()
+                    end_dt = datetime.strptime(parts[1].strip(), '%d-%m-%Y').date()
+                    if start_dt <= target_dt <= end_dt:
+                        is_match = True
+                else:
+                    single_dt = datetime.strptime(dates_str.strip(), '%d-%m-%Y').date()
+                    if single_dt == target_dt:
+                        is_match = True
+                        
+                if not is_match:
+                    continue
+            except Exception as e:
+                target_str = datetime.strptime(filter_date, '%Y-%m-%d').date().strftime('%d-%m-%Y')
+                if target_str not in leave.dates:
+                    continue
+                    
+        # Note: Status filter is handled by frontend JavaScript now.
+                
         if leave.role == 'Teacher':
             dept = leave.user.department or 'Unknown'
             if dept not in report_teachers: report_teachers[dept] = []
@@ -328,7 +662,9 @@ def leave_reports():
             
     return render_template('admin/reports.html', 
                             report_teachers=report_teachers, 
-                            report_students=report_students)
+                            report_students=report_students,
+                            filter_date=filter_date,
+                            filter_status=filter_status)
 
 @app.route('/admin/delete_user/<int:user_id>')
 def delete_user(user_id):
@@ -373,10 +709,66 @@ def teacher_student_leaves():
                                
     return render_template('teacher/student_leaves.html', leaves=leaves, mentored_classes=mentored_classes)
 
+@app.route('/teacher/monthly_reports')
+def monthly_reports():
+    if session.get('role') != 'Teacher': return redirect(url_for('login'))
+    
+    current_teacher_name = session.get('name')
+    mentors_path = os.path.join(app.root_path, 'mentors_data.json')
+    mentored_classes = []
+    
+    if os.path.exists(mentors_path):
+        try:
+            with open(mentors_path, 'r') as f:
+                mentors_data = json.load(f)
+            for item in mentors_data:
+                if item['mentor1'] == current_teacher_name or item['mentor2'] == current_teacher_name:
+                    mentored_classes.append(item['class_name'])
+        except Exception as e: print(f"Error: {e}")
+
+    if not mentored_classes:
+        flash("You are not assigned as a mentor for any class.", "warning")
+        return redirect(url_for('dashboard'))
+
+    # Analytics Logic
+    from sqlalchemy import extract
+    now = datetime.now()
+    current_month_leaves = LeaveRequest.query.join(User).filter(
+        User.department.in_(mentored_classes),
+        extract('month', LeaveRequest.created_at) == now.month,
+        extract('year', LeaveRequest.created_at) == now.year,
+        LeaveRequest.status == 'Approved'
+    ).all()
+
+    # Aggregate Data for Charts
+    stats = {} # {StudentName: Count}
+    reasons = {} # {ReasonWord: Count}
+    
+    for leave in current_month_leaves:
+        stats[leave.user.name] = stats.get(leave.user.name, 0) + 1
+        # Simple reason extraction
+        r = leave.reason.split()[0][:10] if leave.reason else "Other"
+        reasons[r] = reasons.get(r, 0) + 1
+
+    chart_data = {
+        'labels': list(stats.keys()),
+        'counts': list(stats.values()),
+        'reason_labels': list(reasons.keys()),
+        'reason_counts': list(reasons.values())
+    }
+
+    return render_template('teacher/monthly_reports.html', 
+                           mentored_classes=mentored_classes, 
+                           chart_data=chart_data,
+                           total_month_leaves=len(current_month_leaves),
+                           current_month_leaves=current_month_leaves,
+                           now=now)
+
 # General Routes
 @app.route('/apply_leave', methods=['GET', 'POST'])
 def apply_leave():
     if 'user_id' not in session: return redirect(url_for('login'))
+    user = User.query.get(session['user_id'])
     if request.method == 'POST':
         reason = request.form.get('reason')
         dates = request.form.get('dates')
@@ -395,6 +787,21 @@ def apply_leave():
             return redirect(request.referrer)
 
         try:
+            # 0. Academic Window Check
+            from datetime import date
+            today = date.today()
+            
+            s_obj = Settings.query.filter_by(key='academic_start').first()
+            e_obj = Settings.query.filter_by(key='academic_end').first()
+            
+            if s_obj and e_obj:
+                acad_start = datetime.strptime(s_obj.value, '%Y-%m-%d').date()
+                acad_end = datetime.strptime(e_obj.value, '%Y-%m-%d').date()
+                
+                if today < acad_start or today > acad_end:
+                    flash(f'Academic Portal Closed. Leaves can only be applied between {acad_start.strftime("%d-%m-%Y")} and {acad_end.strftime("%d-%m-%Y")}.', 'danger')
+                    return redirect(request.referrer)
+
             if ' to ' in dates.lower():
                 start_str = dates.lower().split('to')[0].strip()
             else:
@@ -406,36 +813,69 @@ def apply_leave():
                 flash(f'Cannot apply for past dates! Today is {today.strftime("%d-%m-%Y")}.', 'warning')
                 return redirect(request.referrer)
             
-            # Same-Day Leave Rules
+            # 1. Same-Day Leave Rules
             if requested_start == today:
                 now_dt = datetime.now()
                 now_time = now_dt.time()
                 
-                # 1. Student Rule: Before 9:00 AM
+                # Student Rule: Before 8:30 AM
                 if session.get('role') == 'Student':
-                    cutoff_time = datetime.strptime("09:00:00", "%H:%M:%S").time()
+                    cutoff_time = datetime.strptime("08:30:00", "%H:%M:%S").time()
                     if now_time >= cutoff_time:
-                        flash('Same-day student leave must be applied before 9:00 AM!', 'danger')
+                        flash('Same-day student leave must be applied before 8:30 AM!', 'danger')
                         return redirect(request.referrer)
                 
-                # 2. Teacher Rule: 1-hour Gap Rule
+                # Teacher Rule: 1-hour Gap Rule
                 elif session.get('role') == 'Teacher' and start_time_val:
                     try:
-                        # Parse user's requested leave time (e.g. "12:00")
                         leave_dt = datetime.strptime(f"{today.strftime('%d-%m-%Y')} {start_time_val}", "%d-%m-%Y %H:%M")
-                        
-                        # Calculate time difference
                         time_diff = leave_dt - now_dt
                         diff_minutes = time_diff.total_seconds() / 60
                         
                         if diff_minutes < 60:
-                            flash('Same-day teacher leave must be applied at least 1 hour before the leave starts! In case of any emergency, please contact the Administrator.', 'danger')
+                            flash('Same-day teacher leave must be applied at least 1 hour before the leave starts!', 'danger')
                             return redirect(request.referrer)
                     except ValueError:
-                        flash('Invalid time format! Please use HH:MM (24-hour format)', 'warning')
+                        flash('Invalid time format! Please use HH:MM', 'warning')
                         return redirect(request.referrer)
+            
+            # 2. Advance Limit Check (10 days)
+            days_diff = (requested_start - today).days
+            if days_diff > 10:
+                flash('Leave can only be applied up to 10 days in advance!', 'danger')
+                return redirect(request.referrer)
+
+            # 3. Leave Balance Check for Teachers
+            if session.get('role') == 'Teacher':
+                l_type = request.form.get('leave_type')
+                if not l_type:
+                    flash('Please select a leave type.', 'warning')
+                    return redirect(request.referrer)
+                
+                bal = LeaveBalance.query.filter_by(user_id=session['user_id'], leave_type=l_type).first()
+                if not bal or bal.balance <= 0:
+                    flash(f'No {l_type} available. Your current balance is 0.', 'danger')
+                    return redirect(request.referrer)
+                
+                # Calculate duration
+                duration = 1
+                if ' to ' in dates.lower():
+                    try:
+                        pts = dates.lower().split(' to ')
+                        d1 = datetime.strptime(pts[0].strip(), '%d-%m-%Y')
+                        d2 = datetime.strptime(pts[1].strip(), '%d-%m-%Y')
+                        duration = (d2 - d1).days + 1
+                    except: duration = 1
+                
+                if bal.balance < duration:
+                    flash(f'Insufficient balance. Required: {duration}, Available: {bal.balance}', 'danger')
+                    return redirect(request.referrer)
+                
+                # Deduction will happen ONLY upon Admin approval now.
+                # db.session.commit() removed here to prevent immediate deduction.
+
         except Exception as e:
-            flash(f'Error parsing dates: {e}', 'warning')
+            flash(f'Error processing request: {e}', 'warning')
             return redirect(request.referrer)
         
         filename = None
@@ -448,7 +888,7 @@ def apply_leave():
             role=session['role'], 
             reason=reason, 
             dates=dates, 
-            start_time=start_time_val,
+            start_time=start_time_val if start_time_val else "Full Day",
             document_path=filename
         )
         db.session.add(new_leave)
@@ -478,9 +918,118 @@ def apply_leave():
         return redirect(url_for('dashboard'))
     
     if session['role'] == 'Teacher':
-        return render_template('teacher/apply_leave.html')
+        return render_template('teacher/apply_leave.html', user=user)
     else:
-        return render_template('student/apply_leave.html')
+        # Calculate aggregate attendance for warning
+        attendance_records = Attendance.query.filter_by(student_id=session['user_id']).all()
+        total_held = sum(r.total_classes for r in attendance_records)
+        total_attended = sum(r.attended_classes for r in attendance_records)
+        
+        avg_pct = (total_attended / total_held * 100) if total_held > 0 else 100
+        attendance_warning = None
+        if avg_pct < 75:
+            attendance_warning = f"Alert: Your current aggregate attendance is {round(avg_pct, 1)}%, which is below the required 75%. Further leaves may impact your eligibility."
+            
+        return render_template('student/apply_leave.html', attendance_warning=attendance_warning)
+
+@app.route('/api/student_attendance/<int:student_id>')
+def get_student_attendance(student_id):
+    if 'user_id' not in session: return jsonify({'error': 'Unauthorized'}), 401
+    
+    # Get all attendance records for this student
+    records = Attendance.query.filter_by(student_id=student_id).all()
+    
+    # Organize by subject (show latest record per subject or average)
+    summary = {}
+    for r in records:
+        if r.subject not in summary:
+            summary[r.subject] = {'total': 0, 'attended': 0}
+        summary[r.subject]['total'] += r.total_classes
+        summary[r.subject]['attended'] += r.attended_classes
+        
+    data = []
+    for sub, vals in summary.items():
+        pct = (vals['attended'] / vals['total'] * 100) if vals['total'] > 0 else 0
+        data.append({
+            'subject': sub,
+            'total': vals['total'],
+            'attended': vals['attended'],
+            'percentage': round(pct, 1)
+        })
+        
+    return jsonify(data)
+
+@app.route('/teacher/attendance')
+def teacher_attendance_list():
+    if session.get('role') != 'Teacher': return redirect(url_for('login'))
+    
+    teacher_id = session.get('user_id')
+    # Get all unique class+subject combinations this teacher takes
+    classes = db.session.query(TeacherTimetable.class_name, TeacherTimetable.subject).filter_by(teacher_id=teacher_id).distinct().all()
+    
+    return render_template('teacher/attendance_list.html', classes=classes)
+
+@app.route('/teacher/mark_attendance/<string:class_name>/<string:subject>')
+def mark_attendance_form(class_name, subject):
+    if session.get('role') != 'Teacher': return redirect(url_for('login'))
+    
+    current_month = request.args.get('month', datetime.now().strftime('%B %Y'))
+    
+    # Get all students in this class
+    students = User.query.filter_by(role='Student', department=class_name).all()
+    
+    # Get existing attendance records for the selected month
+    existing = {a.student_id: a for a in Attendance.query.filter_by(subject=subject, month=current_month).all()}
+    
+    # Generate list of last 6 months for selection
+    months_list = []
+    for i in range(6):
+        m = (datetime.now() - timedelta(days=i*30)).strftime('%B %Y')
+        if m not in months_list: months_list.append(m)
+        
+    return render_template('teacher/mark_attendance.html', 
+                           students=students, 
+                           class_name=class_name, 
+                           subject=subject, 
+                           existing=existing, 
+                           current_month=current_month,
+                           months_list=months_list)
+
+@app.route('/teacher/save_attendance', methods=['POST'])
+def save_attendance():
+    if session.get('role') != 'Teacher': return redirect(url_for('login'))
+    
+    class_name = request.form.get('class_name')
+    subject = request.form.get('subject')
+    month = request.form.get('month')
+    total_classes = int(request.form.get('total_classes', 0))
+    
+    # Get student list
+    students = User.query.filter_by(role='Student', department=class_name).all()
+    
+    for student in students:
+        attended_val = request.form.get(f'attended_{student.id}', 0)
+        attended = int(attended_val) if attended_val else 0
+        
+        # Upsert logic based on student, subject, AND month
+        record = Attendance.query.filter_by(student_id=student.id, subject=subject, month=month).first()
+        if record:
+            record.total_classes = total_classes
+            record.attended_classes = attended
+            record.last_updated = datetime.utcnow()
+        else:
+            new_record = Attendance(
+                student_id=student.id,
+                subject=subject,
+                month=month,
+                total_classes=total_classes,
+                attended_classes=attended
+            )
+            db.session.add(new_record)
+            
+    db.session.commit()
+    flash(f'Attendance for {month} saved successfully!', 'success')
+    return redirect(url_for('teacher_attendance_list'))
 
 @app.route('/update_leave/<int:leave_id>/<string:status>')
 def update_leave(leave_id, status):
@@ -488,12 +1037,20 @@ def update_leave(leave_id, status):
     leave = LeaveRequest.query.get(leave_id)
     if not leave: return redirect(url_for('dashboard'))
     
+    # Check for expiration before allowing Approval
+    if status == 'Approved' and get_effective_status(leave) == "Not Approved (Expired)":
+        flash('Action Denied: This leave request has expired and cannot be approved after the leave date.', 'danger')
+        return redirect(request.referrer)
+
     current_role = session.get('role')
+    
+    remark = request.args.get('remark')
     
     # Admin can approve/reject Teacher leaves OR Student leaves forwarded to them
     if current_role == 'Admin':
         if leave.role == 'Teacher' or leave.status == 'Forwarded to Admin':
             leave.status = status
+            if remark: leave.remark = remark
         else:
             flash('Unauthorized for this request', 'danger')
             return redirect(url_for('dashboard'))
@@ -501,19 +1058,85 @@ def update_leave(leave_id, status):
     # Teacher (Mentor) can approve/reject/forward Student leaves
     elif current_role == 'Teacher' and leave.role == 'Student':
         leave.status = status
-    else:
-        flash('Unauthorized action', 'danger')
-        return redirect(url_for('dashboard'))
-        
+        if remark: leave.remark = remark
+    # 3. Deduction Logic for Teachers only upon Approval
+    if status == 'Approved' and leave.role == 'Teacher':
+        bal = LeaveBalance.query.filter_by(user_id=leave.user_id, leave_type=leave.leave_type).first()
+        if bal:
+            # Calculate duration
+            duration = 1
+            try:
+                if ' to ' in leave.dates.lower():
+                    pts = leave.dates.lower().split(' to ')
+                    d1 = datetime.strptime(pts[0].strip(), '%d-%m-%Y')
+                    d2 = datetime.strptime(pts[1].strip(), '%d-%m-%Y')
+                    duration = (d2 - d1).days + 1
+            except: duration = 1
+            
+            # Final Safety Check
+            if bal.balance >= duration:
+                bal.balance -= duration
+                print(f"Deducted {duration} from {leave.user.name}'s {leave.leave_type} balance.")
+            else:
+                flash(f"Warning: Teacher {leave.user.name} has insufficient balance ({bal.balance}) for this {duration}-day request.", "warning")
+
     db.session.commit()
     
-    # Send Email Notification if Approved
-    if status == 'Approved' and leave.user.email:
-        send_approval_email(leave.user.email, leave.user.name, leave.role, leave.dates)
-        
+    # Notify User and Subject Teachers if leave is Approved
+    if status == 'Approved':
+        if leave.user.email:
+            send_approval_email(leave.user.email, leave.user.name, leave.role, leave.dates)
+            
+        if leave.role == 'Student':
+            try:
+                student_class = leave.user.department
+                # Parse dates to find days of week
+                date_strs = []
+                try:
+                    if ' to ' in leave.dates:
+                        start_str, end_str = leave.dates.split(' to ')
+                        start_dt = datetime.strptime(start_str.strip(), '%d-%m-%Y')
+                        end_dt = datetime.strptime(end_str.strip(), '%d-%m-%Y')
+                        curr = start_dt
+                        while curr <= end_dt:
+                            date_strs.append(curr)
+                            curr += timedelta(days=1)
+                    else:
+                        date_strs.append(datetime.strptime(leave.dates.strip(), '%d-%m-%Y'))
+                except Exception as e:
+                    print(f"Date parsing error: {e}")
+                    date_strs = [datetime.now()]
+                
+                days_of_week = set(d.strftime('%A') for d in date_strs)
+                
+                # Cross-reference timetable for affected subject teachers
+                subject_teachers = TeacherTimetable.query.filter(
+                    TeacherTimetable.class_name == student_class,
+                    TeacherTimetable.day.in_(list(days_of_week))
+                ).all()
+                
+                teacher_map = {} # {teacher_id: [impacts]}
+                for entry in subject_teachers:
+                    if entry.teacher_id not in teacher_map: teacher_map[entry.teacher_id] = []
+                    impact = f"{entry.subject} on {entry.day}"
+                    if impact not in teacher_map[entry.teacher_id]:
+                        teacher_map[entry.teacher_id].append(impact)
+                
+                # Notify each affected subject teacher in real-time
+                for t_id, impacts in teacher_map.items():
+                    socketio.emit('subject_teacher_absence_alert', {
+                        'student_name': leave.user.name,
+                        'class_name': student_class,
+                        'dates': leave.dates,
+                        'impacts': impacts
+                    }, to=f"user_{t_id}")
+                    
+            except Exception as e:
+                print(f"Subject teacher notification error: {e}")
+
     flash(f'Leave updated to {status} successfully!', 'info')
     
-    # Real-time notification for User and Admin
+    # Standard real-time status update for Student and Admin
     update_data = {
         'id': leave_id,
         'status': status,
@@ -553,7 +1176,10 @@ def teacher_timetable():
     timetable_data = {}
     for record in timetable_records:
         if record.day not in timetable_data: timetable_data[record.day] = {}
-        timetable_data[record.day][record.period] = record.subject
+        timetable_data[record.day][record.period] = {
+            'subject': record.subject,
+            'class_name': record.class_name
+        }
         
     days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
     periods = range(1, 8) # 7 periods
@@ -620,6 +1246,56 @@ def manage_subjects():
         
     return render_template('admin/subjects.html', mapping=mapping)
 
+@app.route('/admin/settings', methods=['GET', 'POST'])
+def manage_settings():
+    if session.get('role') != 'Admin': return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        st = request.form.get('academic_start')
+        en = request.form.get('academic_end')
+        
+        s_obj = Settings.query.filter_by(key='academic_start').first()
+        e_obj = Settings.query.filter_by(key='academic_end').first()
+        
+        if s_obj: s_obj.value = st
+        if e_obj: e_obj.value = en
+        db.session.commit()
+        flash('Academic session settings updated!', 'success')
+        return redirect(url_for('manage_settings'))
+        
+    st_obj = Settings.query.filter_by(key='academic_start').first()
+    en_obj = Settings.query.filter_by(key='academic_end').first()
+    st = st_obj.value if st_obj else '2026-06-01'
+    en = en_obj.value if en_obj else '2027-05-31'
+    return render_template('admin/settings.html', st=st, en=en)
+
+@app.route('/admin/faculty_leaves', methods=['GET', 'POST'])
+def manage_faculty_leaves():
+    if session.get('role') != 'Admin': return redirect(url_for('login'))
+    
+    leave_types = ['Casual Leave', 'Medical Leave', 'Earned Leave', 'Special Leave']
+    
+    if request.method == 'POST':
+        l_type = request.form.get('leave_type')
+        count = int(request.form.get('count', 0))
+        
+        # Apply this count to ALL teachers
+        teachers = User.query.filter_by(role='Teacher').all()
+        for t in teachers:
+            balance_obj = LeaveBalance.query.filter_by(user_id=t.id, leave_type=l_type).first()
+            if balance_obj:
+                balance_obj.balance = count
+            else:
+                new_bal = LeaveBalance(user_id=t.id, leave_type=l_type, balance=count)
+                db.session.add(new_bal)
+        
+        db.session.commit()
+        flash(f'All faculty members now have {count} units of {l_type}!', 'success')
+        return redirect(url_for('manage_faculty_leaves'))
+        
+    teachers = User.query.filter_by(role='Teacher').all()
+    return render_template('admin/faculty_leaves.html', teachers=teachers, leave_types=leave_types)
+
 @app.route('/api/delete_subject', methods=['POST'])
 def delete_subject():
     if session.get('role') != 'Admin': return jsonify({'success': False}), 403
@@ -644,6 +1320,7 @@ def save_timetable():
     print(f"DEBUG: Received save_timetable request: {data}")
     teacher_id = session.get('user_id')
     day = data.get('day')
+    class_name = None
     try:
         period = int(data.get('period'))
     except (TypeError, ValueError):
@@ -727,15 +1404,12 @@ def save_timetable():
 
         # Now we have final class_name and official_subject
         class_name = target_class
-            
-        # Update search subjects to use official names for database query
-        mapping = get_class_subject_mapping()
-        class_subjects = mapping.get(class_name, [])
-        
+
+        # Refined Clash Detection: Check if another teacher is already taking THIS class at THIS time
         existing_class_record = TeacherTimetable.query.filter(
             TeacherTimetable.day == day,
             TeacherTimetable.period == period,
-            TeacherTimetable.subject.in_(class_subjects),
+            TeacherTimetable.class_name == class_name,
             TeacherTimetable.teacher_id != teacher_id
         ).first()
         
@@ -748,8 +1422,9 @@ def save_timetable():
     if subject:
         if record:
             record.subject = official_subject
+            record.class_name = class_name
         else:
-            new_record = TeacherTimetable(teacher_id=teacher_id, day=day, period=period, subject=official_subject)
+            new_record = TeacherTimetable(teacher_id=teacher_id, day=day, period=period, subject=official_subject, class_name=class_name)
             db.session.add(new_record)
     else:
         # If subject is empty/None, remove the record
@@ -766,12 +1441,8 @@ def student_timetable():
     student = User.query.get(session.get('user_id'))
     student_class = student.department # department field stores Class for students
     
-    # Get subjects for this class
-    mapping = get_class_subject_mapping()
-    class_subjects = mapping.get(student_class, [])
-    
-    # Fetch all teacher timetable records that involve these subjects
-    timetable_records = TeacherTimetable.query.filter(TeacherTimetable.subject.in_(class_subjects)).all()
+    # Fetch all timetable records for this student's class
+    timetable_records = TeacherTimetable.query.filter_by(class_name=student_class).all()
     
     # Organize: {day: {period: {subject: subject, teacher: teacher_name}}}
     timetable_data = {}
@@ -790,6 +1461,177 @@ def student_timetable():
                            days=days, 
                            periods=periods,
                            student_class=student_class)
+
+# HOD Routes
+@app.route('/hod/assign_subjects')
+def hod_assign_subjects():
+    if session.get('role') != 'Teacher': return redirect(url_for('login'))
+    user = User.query.get(session['user_id'])
+    if not user or not user.is_hod: 
+        flash('Access denied. HOD only.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    dept = user.department
+    
+    # Determine allowed classes for this department
+    dept_classes = []
+    if 'computer' in dept.lower():
+        dept_classes = ['IBCA', 'IIBCA', 'IIIBCA', 'BSC']
+    elif 'commerce' in dept.lower():
+        dept_classes = ['IBCOM', 'IIBCOM', 'IIIBCOM']
+    elif 'business' in dept.lower():
+        dept_classes = ['IBBA', 'IIBBA', 'IIIBBA']
+    else:
+        dept_classes = [] # Language or others might have to see all or specific
+        
+    mapping = get_class_subject_mapping()
+    all_subjects = []
+    for c_name, subjects in mapping.items():
+        if not dept_classes or c_name in dept_classes:
+            all_subjects.extend(subjects)
+    all_subjects = sorted(list(set(all_subjects)))
+    
+    # Get all teachers in this department
+    dept_teachers = User.query.filter_by(role='Teacher', department=dept).all()
+    
+    # Build timetable and subject data for each teacher
+    teachers_data = []
+    days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    periods = range(1, 8)
+    
+    for teacher in dept_teachers:
+        # Load Timetable
+        records = TeacherTimetable.query.filter_by(teacher_id=teacher.id).all()
+        tt = {}
+        for rec in records:
+            if rec.day not in tt: tt[rec.day] = {}
+            tt[rec.day][rec.period] = {
+                'subject': rec.subject,
+                'class_name': rec.class_name
+            }
+            
+        # Load Assigned Subjects
+        assigned_subs = TeacherSubject.query.filter_by(teacher_id=teacher.id).all()
+        assigned_subs_list = [s.subject for s in assigned_subs]
+            
+        teachers_data.append({
+            'id': teacher.id,
+            'name': teacher.name,
+            'is_hod': teacher.is_hod,
+            'timetable': tt,
+            'assigned_subjects': assigned_subs_list
+        })
+    
+    return render_template('teacher/hod_assign.html',
+                           teachers_data=teachers_data,
+                           all_subjects=all_subjects,
+                           class_mapping=mapping,
+                           days=days,
+                           periods=periods,
+                           department=dept)
+
+@app.route('/api/hod_assign_teacher_subject', methods=['POST'])
+def hod_assign_teacher_subject():
+    if session.get('role') != 'Teacher': return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    user = User.query.get(session['user_id'])
+    if not user or not user.is_hod: return jsonify({'success': False, 'message': 'HOD access required'}), 403
+    
+    data = request.json
+    teacher_id = data.get('teacher_id')
+    subject = data.get('subject')
+    action = data.get('action') # 'add' or 'remove'
+    
+    if not teacher_id or not subject or not action:
+        return jsonify({'success': False, 'message': 'Missing data'}), 400
+        
+    target_teacher = User.query.get(teacher_id)
+    if not target_teacher or target_teacher.department != user.department:
+        return jsonify({'success': False, 'message': 'Invalid teacher'}), 400
+        
+    existing = TeacherSubject.query.filter_by(teacher_id=teacher_id, subject=subject).first()
+    
+    if action == 'add':
+        if not existing:
+            new_sub = TeacherSubject(teacher_id=teacher_id, subject=subject)
+            db.session.add(new_sub)
+    elif action == 'remove':
+        if existing:
+            db.session.delete(existing)
+            
+    db.session.commit()
+    return jsonify({'success': True})
+
+@app.route('/api/hod_save_timetable', methods=['POST'])
+def hod_save_timetable():
+    if session.get('role') != 'Teacher': return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    user = User.query.get(session['user_id'])
+    if not user or not user.is_hod:
+        return jsonify({'success': False, 'message': 'HOD access required'}), 403
+    
+    data = request.json
+    target_teacher_id = data.get('teacher_id')
+    day = data.get('day')
+    subject = data.get('subject')
+    
+    try:
+        period = int(data.get('period'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Invalid period'}), 400
+    
+    if not day or not period or not target_teacher_id:
+        return jsonify({'success': False, 'message': 'Missing data'}), 400
+    
+    # Verify the target teacher is in the same department
+    target_teacher = User.query.get(target_teacher_id)
+    if not target_teacher or target_teacher.department != user.department:
+        return jsonify({'success': False, 'message': 'Teacher not in your department'}), 403
+    
+    class_name = None
+    official_subject = subject
+    
+    if subject:
+        mapping = get_class_subject_mapping()
+        search_sub = subject.strip().lower()
+        
+        # Find which class this subject belongs to
+        for c_name, subjects_list in mapping.items():
+            for s in subjects_list:
+                if search_sub == s.strip().lower():
+                    class_name = c_name
+                    official_subject = s
+                    break
+            if class_name: break
+        
+        if not class_name:
+            class_name = 'General'
+        
+        # Check clash: another teacher already taking this class at this time
+        existing = TeacherTimetable.query.filter(
+            TeacherTimetable.day == day,
+            TeacherTimetable.period == period,
+            TeacherTimetable.class_name == class_name,
+            TeacherTimetable.teacher_id != target_teacher_id
+        ).first()
+        
+        if existing:
+            return jsonify({'success': False, 'message': f'Class {class_name} is busy with {existing.subject} (Teacher: {existing.teacher.name})'}), 400
+    
+    # Find or create record
+    record = TeacherTimetable.query.filter_by(teacher_id=target_teacher_id, day=day, period=period).first()
+    
+    if subject:
+        if record:
+            record.subject = official_subject
+            record.class_name = class_name
+        else:
+            new_record = TeacherTimetable(teacher_id=target_teacher_id, day=day, period=period, subject=official_subject, class_name=class_name)
+            db.session.add(new_record)
+    else:
+        if record:
+            db.session.delete(record)
+    
+    db.session.commit()
+    return jsonify({'success': True, 'class_name': class_name})
 
 # AI Integration with Ollama
 @app.route('/ai/ask', methods=['POST'])
@@ -826,5 +1668,70 @@ def ai_ask():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+    db.session.commit()
+    return redirect(request.referrer)
+
+# Background Task for Morning Notifications
+import time
+def notification_scheduler():
+    while True:
+        with app.app_context():
+            try:
+                today_str = datetime.now().strftime('%d-%m-%Y')
+                today_name = datetime.now().strftime('%A')
+                
+                # Find all approved student leaves that involve today
+                # This is a bit complex due to string storage, but we check if today_str is in active dates
+                active_leaves = LeaveRequest.query.filter_by(status='Approved', role='Student').all()
+                
+                for leave in active_leaves:
+                    # Check if today is one of the leave dates
+                    is_today = False
+                    if ' to ' in leave.dates:
+                        start_str, end_str = leave.dates.split(' to ')
+                        start_dt = datetime.strptime(start_str.strip(), '%d-%m-%Y').date()
+                        end_dt = datetime.strptime(end_str.strip(), '%d-%m-%Y').date()
+                        if start_dt <= datetime.now().date() <= end_dt:
+                            is_today = True
+                    elif leave.dates.strip() == today_str:
+                        is_today = True
+                    
+                    if is_today:
+                        # Check "3-day only" rule: only notify if today is within the first 3 days of the leave
+                        if ' to ' in leave.dates:
+                            start_str = leave.dates.split(' to ')[0].strip()
+                            start_dt = datetime.strptime(start_str, '%d-%m-%Y').date()
+                            day_index = (datetime.now().date() - start_dt).days
+                            if day_index >= 3: # Day 0, 1, 2 are notified. Day 3+ (4th day onwards) is NOT.
+                                is_today = False
+                    
+                    if is_today:
+                        student_class = leave.user.department
+                        # Find teachers for today
+                        subject_teachers = TeacherTimetable.query.filter_by(class_name=student_class, day=today_name).all()
+                        
+                        teacher_map = {}
+                        for entry in subject_teachers:
+                            if entry.teacher_id not in teacher_map: teacher_map[entry.teacher_id] = []
+                            teacher_map[entry.teacher_id].append(entry.subject)
+                            
+                        for t_id, subjects in teacher_map.items():
+                            socketio.emit('subject_teacher_absence_alert', {
+                                'student_name': leave.user.name,
+                                'class_name': student_class,
+                                'dates': "Today",
+                                'impacts': [f"{s} (Today)" for s in subjects]
+                            }, to=f"user_{t_id}")
+                            
+            except Exception as e:
+                print(f"Scheduler error: {e}")
+        
+        # Run every 6 hours (adjust as needed)
+        time.sleep(21600)
+
+# Start scheduler in a background thread
+scheduler_thread = threading.Thread(target=notification_scheduler, daemon=True)
+scheduler_thread.start()
+
 if __name__ == '__main__':
-    socketio.run(app, debug=True)
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)

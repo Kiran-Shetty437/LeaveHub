@@ -1,63 +1,81 @@
 {% extends "base.html" %}
 
-{% block title %}Today's Absentees - LeaveSystem{% endblock %}
-{% block page_title %}Today's Absentees{% endblock %}
+{% block title %}Attendance Monitor | LeaveHub{% endblock %}
+{% block page_title %}Real-time Absentees{% endblock %}
 
 {% block content %}
-<div style="background: var(--white); padding: 1rem; border-radius: 0.5rem; margin-bottom: 2rem; border-left: 4px solid var(--warning);">
-    <p style="font-size: 0.875rem; color: var(--text-muted);">
-        <i class="fas fa-calendar-alt"></i> Listing all <strong>Approved</strong> leave applications and their scheduled dates.
-    </p>
+<div class="glass-card animate-fade-in" style="padding: 1.5rem; margin-bottom: 2.5rem; border-left: 4px solid var(--warning); background: rgba(250, 204, 21, 0.03);">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <div style="width: 40px; height: 40px; background: rgba(250, 204, 21, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--warning);">
+            <i class="fas fa-calendar-check"></i>
+        </div>
+        <div>
+            <p style="font-size: 0.9rem; font-weight: 700; color: white;">Global Attendance Filter</p>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Displaying individuals with <span style="color: var(--success); font-weight: 700;">APPROVED</span> leave status for the current cycle.</p>
+        </div>
+    </div>
 </div>
 
-<div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-    <!-- Teachers List -->
-    <div class="card-section">
-        <h2 style="margin-bottom: 1.5rem; font-size: 1.25rem;"><i class="fas fa-chalkboard-teacher"></i> Absent Teachers</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; align-items: start;">
+    <!-- Faculty Section -->
+    <div class="glass-card animate-fade-in" style="padding: 2rem;">
+        <h3 style="margin-bottom: 2rem; font-size: 1.2rem; font-weight: 800; color: white; display: flex; align-items: center; gap: 12px;">
+            <i class="fas fa-user-tie" style="color: var(--primary);"></i> Absent Faculty
+        </h3>
+        
         {% for dept, teachers in absent_teachers.items() %}
-            <div style="margin-bottom: 1.5rem;">
-                <h3 style="font-size: 1rem; color: var(--primary); margin-bottom: 0.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem;">
+            <div style="margin-bottom: 2rem;">
+                <h4 style="font-size: 0.75rem; color: var(--primary); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
                     {{ dept }}
-                </h3>
-                <ul style="list-style: none; padding-left: 0;">
+                </h4>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
                     {% for teacher in teachers %}
-                    <li style="padding: 0.5rem; background: #fff; border-radius: 0.25rem; margin-bottom: 0.25rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 0.25rem;">
-                        <div style="display: flex; justify-content: space-between;">
-                            <span style="font-weight: 600;">{{ teacher.user.name }}</span>
-                            <span style="font-size: 0.75rem; color: var(--primary); font-weight: 500;">{{ teacher.dates }}</span>
+                    <div class="glass-card" style="padding: 1.25rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.03);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <span style="font-weight: 700; color: white;">{{ teacher.user.name }}</span>
+                            <span class="status-badge" style="font-size: 0.65rem; background: rgba(99, 102, 241, 0.1); color: var(--primary);">{{ teacher.dates }}</span>
                         </div>
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">{{ teacher.user.email }}</span>
-                    </li>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ teacher.user.email }}</div>
+                    </div>
                     {% endfor %}
-                </ul>
+                </div>
             </div>
         {% else %}
-            <p style="text-align: center; color: var(--text-muted); padding: 2rem;">No teachers with approved leave.</p>
+            <div style="text-align: center; padding: 4rem 2rem;">
+                <i class="fas fa-check-double" style="font-size: 2.5rem; color: var(--success); opacity: 0.2; display: block; margin-bottom: 1rem;"></i>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Full faculty attendance registered.</p>
+            </div>
         {% endfor %}
     </div>
 
-    <!-- Students List -->
-    <div class="card-section">
-        <h2 style="margin-bottom: 1.5rem; font-size: 1.25rem;"><i class="fas fa-user-graduate"></i> Absent Students</h2>
+    <!-- Student Section -->
+    <div class="glass-card animate-fade-in" style="padding: 2rem;">
+        <h3 style="margin-bottom: 2rem; font-size: 1.2rem; font-weight: 800; color: white; display: flex; align-items: center; gap: 12px;">
+            <i class="fas fa-user-graduate" style="color: var(--accent);"></i> Absent Students
+        </h3>
+        
         {% for cls, students in absent_students.items() %}
-            <div style="margin-bottom: 1.5rem;">
-                <h3 style="font-size: 1rem; color: var(--secondary); margin-bottom: 0.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem;">
+            <div style="margin-bottom: 2rem;">
+                <h4 style="font-size: 0.75rem; color: var(--accent); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
                     {{ cls }}
-                </h3>
-                <ul style="list-style: none; padding-left: 0;">
+                </h4>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
                     {% for student in students %}
-                    <li style="padding: 0.5rem; background: #fff; border-radius: 0.25rem; margin-bottom: 0.25rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 0.25rem;">
-                        <div style="display: flex; justify-content: space-between;">
-                            <span style="font-weight: 600;">{{ student.user.name }}</span>
-                            <span style="font-size: 0.75rem; color: var(--secondary); font-weight: 500;">{{ student.dates }}</span>
+                    <div class="glass-card" style="padding: 1.25rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.03);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <span style="font-weight: 700; color: white;">{{ student.user.name }}</span>
+                            <span class="status-badge" style="font-size: 0.65rem; background: rgba(139, 92, 246, 0.1); color: var(--accent);">{{ student.dates }}</span>
                         </div>
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">Roll No: {{ student.user.roll_no }}</span>
-                    </li>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Roll ID: <span style="color: white;">{{ student.user.roll_no }}</span></div>
+                    </div>
                     {% endfor %}
-                </ul>
+                </div>
             </div>
         {% else %}
-            <p style="text-align: center; color: var(--text-muted); padding: 2rem;">No students with approved leave.</p>
+            <div style="text-align: center; padding: 4rem 2rem;">
+                <i class="fas fa-users" style="font-size: 2.5rem; color: var(--success); opacity: 0.2; display: block; margin-bottom: 1rem;"></i>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">No students on approved leave today.</p>
+            </div>
         {% endfor %}
     </div>
 </div>

@@ -1,88 +1,57 @@
 {% extends "base.html" %}
 
-{% block title %}Login - LeaveSystem{% endblock %}
+{% block title %}Login | LeaveHub{% endblock %}
 
 {% block content %}
-<div class="login-page">
-    <div class="login-card">
-        <div class="login-header">
-            <i class="fas fa-university logo-icon" style="font-size: 3rem; margin-bottom: 1rem; color: var(--primary);"></i>
-            <h2>Welcome Back</h2>
-            <p>Please enter your credentials to continue</p>
+<div
+    style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.15), transparent), radial-gradient(circle at bottom left, rgba(139, 92, 246, 0.15), transparent);">
+    <div class="glass-card"
+        style="width: 100%; max-width: 420px; padding: 3rem 2.5rem; border-top: 2px solid rgba(59, 130, 246, 0.3);">
+        <div style="text-align: center; margin-bottom: 2.5rem;">
+            <div
+                style="width: 64px; height: 64px; background: var(--accent-gradient); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem; color: white; box-shadow: 0 10px 20px var(--primary-glow);">
+                <i class="fas fa-lock"></i>
+            </div>
+            <h2 style="font-size: 1.75rem; font-weight: 700; color: white; letter-spacing: -0.5px;">Welcome Back</h2>
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 8px;">Access the Leave Management Portal
+            </p>
         </div>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-              <div class="alert alert-{{ category }}" style="margin-bottom: 1.5rem; font-size: 0.875rem;">
-                {{ message }}
-              </div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
 
         <form action="{{ url_for('login') }}" method="POST">
             <div class="form-group">
                 <label for="username">Username</label>
                 <div style="position: relative;">
-                    <i class="fas fa-user" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
-                    <input type="text" name="username" id="username" class="form-control" placeholder="Enter username" style="padding-left: 2.75rem;" required>
+                    <i class="fas fa-user"
+                        style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem;"></i>
+                    <input type="text" name="username" id="username" class="form-control" style="padding-left: 45px;"
+                        placeholder="john_doe" required>
                 </div>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" style="margin-bottom: 2rem;">
                 <label for="password">Password</label>
                 <div style="position: relative;">
-                    <i class="fas fa-lock" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
-                    <input type="password" name="password" id="password" class="form-control" placeholder="••••••••" style="padding-left: 2.75rem; padding-right: 3rem;" required>
-                    <i class="fas fa-eye" id="togglePassword" style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); cursor: pointer;"></i>
+                    <i class="fas fa-key"
+                        style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem;"></i>
+                    <input type="password" name="password" id="password" class="form-control"
+                        style="padding-left: 45px;" placeholder="••••••••" required>
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem; font-size: 1rem; padding: 0.875rem;">
-                Sign In <i class="fas fa-arrow-right"></i>
+            <button type="submit" class="glow-button" style="width: 100%; justify-content: center; margin-top: 1rem;">
+                Sign In <i class="fas fa-arrow-right" style="margin-left: 10px;"></i>
             </button>
         </form>
 
-        <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); text-align: center;">
-            <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.6;">
-                <strong>Admin:</strong> admin / admin123<br>
-                <strong>Teacher:</strong> Name / Dept<br>
-                <strong>Student:</strong> Roll No / DOB
+        <div
+            style="margin-top: 2rem; text-align: center; border-top: 1px solid var(--border-glass); padding-top: 1.5rem;">
+            <p style="color: var(--text-muted); font-size: 0.85rem;">
+                Need help? <a href="#" style="color: var(--primary); font-weight: 600; text-decoration: none;">Contact
+                    Admin</a>
             </p>
         </div>
     </div>
 </div>
 {% endblock %}
 
-{% block extra_css %}
-<style>
-    /* Override main-content and top-header for login page */
-    .main-content {
-        padding: 0 !important;
-        background: transparent !important;
-    }
-    .top-header {
-        display: none !important;
-    }
-    .content-body {
-        padding: 0 !important;
-    }
-</style>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-    const togglePassword = document.querySelector('#togglePassword');
-    const password = document.querySelector('#password');
-
-    togglePassword.addEventListener('click', function (e) {
-        // toggle the type attribute
-        const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
-        password.setAttribute('type', type);
-        // toggle the eye slash icon
-        this.classList.toggle('fa-eye-slash');
-        this.classList.toggle('fa-eye');
-    });
-</script>
-{% endblock %}
+{% block page_title %}{% endblock %}

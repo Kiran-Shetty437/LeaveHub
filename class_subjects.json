@@ -5,14 +5,17 @@
     "Digital Electronics",
     "English",
     "Kannada/Hindi",
-    "php"
+    "PHP",
+    "Java",
+    "Kannada"
   ],
   "IIBCA": [
     "Java",
     "DBMS",
     "OS",
     "Data Structures",
-    "Accountancy"
+    "Accountancy",
+    "Kannada"
   ],
   "IIIBCA": [
     "Advanced Java",
@@ -20,5 +23,48 @@
     "WCMS",
     "Software Engineering",
     "Network Security"
-  ]
+  ],
+  "IBCOM": [
+    "Financial Accounting",
+    "Principles of Management",
+    "Business Mathematics",
+    "English",
+    "Economics"
+  ],
+  "IIBCOM": [
+    "Corporate Accounting",
+    "Business Law",
+    "Statistics",
+    "Banking",
+    "Marketing"
+  ],
+  "IIIBCOM": [
+    "Income Tax",
+    "Cost Accounting",
+    "Auditing",
+    "Management Accounting",
+    "GST"
+  ],
+  "IBBA": [
+    "Management Principles",
+    "Business Communication",
+    "Basic Mathematics",
+    "English",
+    "Micro Economics"
+  ],
+  "IIBBA": [
+    "Business Environment",
+    "Human Resource Management",
+    "Marketing Management",
+    "Financial Management",
+    "Business Statistics"
+  ],
+  "IIIBBA": [
+    "Strategic Management",
+    "Operations Research",
+    "Investment Management",
+    "Consumer Behavior",
+    "Business Ethics"
+  ],
+  "BSC": []
 }

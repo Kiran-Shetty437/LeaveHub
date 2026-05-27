@@ -1,41 +1,61 @@
 {% extends "base.html" %}
 
-{% block title %}Manage Students - LeaveSystem{% endblock %}
-{% block page_title %}Manage Students{% endblock %}
+{% block title %}Student Enrollment | LeaveHub{% endblock %}
+{% block page_title %}Student Registry{% endblock %}
 
 {% block content %}
-<div class="table-container">
+<div class="glass-card table-box animate-fade-in" style="margin-bottom: 3rem;">
+    <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Verified Student Database</h3>
+        <div class="status-badge" style="background: rgba(139, 92, 246, 0.1); color: var(--accent);">
+            <i class="fas fa-id-card"></i> {{ students|length }} Enrolled
+        </div>
+    </div>
+
     <table>
         <thead>
             <tr>
-                <th>Roll No</th>
-                <th>Name</th>
-                <th>Class</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>DOB</th>
+                <th>Roll Number</th>
+                <th>Full Name</th>
+                <th>Batch / Class</th>
+                <th>Contact Details</th>
+                <th>Status</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for student in students %}
             <tr>
-                <td style="font-weight: 600;">{{ student.roll_no }}</td>
-                <td>{{ student.name }}</td>
-                <td>{{ student.department }}</td>
-                <td>{{ student.email }}</td>
-                <td>{{ student.phone }}</td>
-                <td>{{ student.dob }}</td>
+                <td style="font-weight: 800; color: var(--accent); font-family: 'Inter', sans-serif;">{{ student.roll_no }}</td>
                 <td>
-                    <a href="{{ url_for('delete_user', user_id=student.id) }}" class="btn btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;" onclick="return confirm('Are you sure you want to delete this student?')">
-                        <i class="fas fa-trash"></i> Delete
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 32px; height: 32px; background: rgba(139, 92, 246, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent); font-size: 0.75rem;">
+                            {{ student.name[0] | upper }}
+                        </div>
+                        <span style="font-weight: 700; color: white;">{{ student.name }}</span>
+                    </div>
+                </td>
+                <td>
+                    <span style="font-weight: 600; color: var(--text-muted); font-size: 0.85rem;">{{ student.department }}</span>
+                </td>
+                <td>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">{{ student.email }}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); opacity: 0.6;">{{ student.phone }}</div>
+                </td>
+                <td>
+                    <div class="status-badge approved" style="font-size: 0.6rem; padding: 4px 10px;">ACTIVE</div>
+                </td>
+                <td>
+                    <a href="{{ url_for('delete_user', user_id=student.id) }}" class="status-badge rejected" style="text-decoration: none; cursor: pointer;" onclick="return confirm('Confirm permanent deletion of student record?')">
+                        <i class="fas fa-trash-can"></i> REMOVE
                     </a>
                 </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="4" style="text-align: center; padding: 3rem; color: var(--text-muted);">
-                    No students added yet.
+                <td colspan="6" style="text-align: center; padding: 5rem; color: var(--text-muted);">
+                    <i class="fas fa-user-tag" style="display: block; font-size: 3rem; margin-bottom: 1.5rem; opacity: 0.1;"></i>
+                    No students currently enrolled.
                 </td>
             </tr>
             {% endfor %}

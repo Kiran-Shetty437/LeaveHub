@@ -1,37 +1,48 @@
 {% extends "base.html" %}
 
-{% block title %}My Timetable - LeaveSystem{% endblock %}
-{% block page_title %}Class Timetable: {{ student_class }}{% endblock %}
+{% block title %}Schedule | LeaveHub{% endblock %}
+{% block page_title %}My Batch Schedule{% endblock %}
 
 {% block content %}
-<div class="timetable-container">
-    <table class="timetable">
+<div class="glass-card animate-fade-in" style="padding: 1.5rem; margin-bottom: 2.5rem; border-left: 4px solid var(--accent); background: radial-gradient(circle at top right, rgba(139, 92, 246, 0.03), transparent);">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <div style="width: 44px; height: 44px; background: rgba(139, 92, 246, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--accent);">
+            <i class="fas fa-clock"></i>
+        </div>
+        <div>
+            <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Current Academic Schedule</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Verified timetable for Batch: <span style="color: white; font-weight: 700;">{{ session.get('department') }}</span></p>
+        </div>
+    </div>
+</div>
+
+<div class="glass-card animate-fade-in" style="padding: 1rem; margin-bottom: 3rem; overflow-x: auto;">
+    <table class="timetable" style="width: 100%; border-collapse: separate; border-spacing: 4px;">
         <thead>
             <tr>
-                <th>Day / Period</th>
+                <th style="background: rgba(255,255,255,0.05); color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Working Day</th>
                 {% for p in periods %}
                     {% if p == 5 %}
-                        <th class="lunch-header" style="min-width: 40px;">Lunch</th>
+                    <th style="background: rgba(250, 204, 21, 0.05); color: var(--warning); font-size: 0.7rem; font-weight: 800;">LUNCH</th>
                     {% endif %}
-                    <th>Period {{ p }}</th>
+                    <th style="background: rgba(255,255,255,0.03); color: white; font-weight: 800; font-size: 0.8rem;">P{{ p }}</th>
                 {% endfor %}
             </tr>
         </thead>
         <tbody>
             {% for day in days %}
             <tr>
-                <td class="day-cell">{{ day }}</td>
+                <td style="background: rgba(139, 92, 246, 0.1); color: white; font-weight: 800; text-align: center; border-radius: 8px; font-size: 0.8rem; padding: 15px;">{{ day[:3] | upper }}</td>
                 {% for p in periods %}
                     {% if p == 5 %}
-                        <td class="lunch-break" data-label="Lunch">BREAK</td>
+                    <td style="background: rgba(250, 204, 21, 0.02); text-align: center; color: var(--warning); font-size: 0.6rem; font-weight: 800; letter-spacing: 2px;">RECESSS</td>
                     {% endif %}
-                    <td data-label="Period {{ p }}">
-                        <div class="timetable-cell">
+                    <td style="border-radius: 8px; background: rgba(255,255,255,0.01);">
+                        <div style="min-height: 80px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px;">
                             {% if timetable_data.get(day, {}).get(p) %}
-                                <span class="subject-name">{{ timetable_data[day][p].subject }}</span>
-                                <span class="teacher-name">By: {{ timetable_data[day][p].teacher }}</span>
+                                <div style="font-weight: 800; color: white; font-size: 0.9rem; text-align: center;">{{ timetable_data[day][p].subject }}</div>
                             {% else %}
-                                <span class="empty-text">---</span>
+                                <div style="opacity: 0.1; font-size: 1.2rem;"><i class="fas fa-minus"></i></div>
                             {% endif %}
                         </div>
                     </td>
@@ -42,8 +53,40 @@
     </table>
 </div>
 
-<div class="alert alert-info" style="margin-top: 2rem; border-radius: 1rem;">
-    <i class="fas fa-info-circle"></i>
-    <span>Note: This timetable is automatically managed by your teachers. Any changes they make will reflect here in real-time.</span>
+<!-- Subject - Teacher Legend -->
+<div class="glass-card animate-fade-in" style="margin-bottom: 3rem;">
+    <div style="padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 12px;">
+        <i class="fas fa-chalkboard-user" style="color: var(--primary);"></i>
+        <h3 style="font-size: 1rem; font-weight: 700; color: white;">Faculty Assignments</h3>
+    </div>
+    <div style="padding: 1.5rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+        {% set listed_subjects = [] %}
+        {% for day, ps in timetable_data.items() %}
+            {% for p, info in ps.items() %}
+                {% if info.subject not in listed_subjects %}
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.02); border-radius: 10px; border: 1px solid rgba(255,255,255,0.03);">
+                        <div>
+                            <div style="font-weight: 700; color: white; font-size: 0.9rem;">{{ info.subject }}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">Assigned Faculty</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-weight: 800; color: var(--primary); font-size: 0.85rem;">{{ info.teacher }}</div>
+                            <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">Verified</div>
+                        </div>
+                    </div>
+                    {% set _ = listed_subjects.append(info.subject) %}
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+    </div>
+</div>
+
+<div class="glass-card animate-fade-in" style="background: rgba(255, 255, 255, 0.02); border-left: 2px solid var(--accent); padding: 1.5rem;">
+    <div style="display: flex; gap: 15px; align-items: center;">
+        <i class="fas fa-shield-halved" style="color: var(--accent);"></i>
+        <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+            This timetable is read-only. For any changes regarding subject assignments or timing, please coordinate with your <span style="color: white; font-weight: 700;">Class Teacher</span>.
+        </p>
+    </div>
 </div>
 {% endblock %}

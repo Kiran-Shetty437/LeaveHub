@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Academic Settings | LeaveHub{% endblock %}
+{% block page_title %}Session Configuration{% endblock %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 0 auto;">
+    <div class="glass-card animate-fade-in" style="padding: 2.5rem; border-top: 4px solid var(--primary);">
+        <div style="margin-bottom: 2rem;">
+            <h3 style="color: white; font-weight: 800; font-size: 1.25rem;">Global Academic Window</h3>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;">Define the active dates for the leave portal. Applications outside this range will be restricted.</p>
+        </div>
+
+        <form action="{{ url_for('manage_settings') }}" method="POST">
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                <div class="form-group">
+                    <label style="color: var(--text-muted); font-size: 0.75rem; font-weight: 800; text-transform: uppercase;">Portal Start Date</label>
+                    <input type="date" name="academic_start" value="{{ st }}" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 12px; border-radius: 10px; width: 100%;" required>
+                </div>
+
+                <div class="form-group">
+                    <label style="color: var(--text-muted); font-size: 0.75rem; font-weight: 800; text-transform: uppercase;">Portal End Date</label>
+                    <input type="date" name="academic_end" value="{{ en }}" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 12px; border-radius: 10px; width: 100%;" required>
+                </div>
+
+                <div style="display: flex; gap: 15px; margin-top: 1rem;">
+                    <button type="submit" class="glow-button" style="flex: 1; justify-content: center;">
+                        Save Configuration
+                    </button>
+                    <a href="{{ url_for('dashboard') }}" class="glass-card" style="padding: 12px 25px; color: var(--text-muted); font-weight: 700; text-decoration: none;">Cancel</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

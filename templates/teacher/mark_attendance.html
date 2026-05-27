@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Mark Attendance | LeaveHub{% endblock %}
+{% block page_title %}Engagement Audit: {{ class_name }} - {{ subject }}{% endblock %}
+
+{% block content %}
+<form action="{{ url_for('save_attendance') }}" method="POST">
+    <input type="hidden" name="class_name" value="{{ class_name }}">
+    <input type="hidden" name="subject" value="{{ subject }}">
+
+    <div class="glass-card animate-fade-in" style="margin-bottom: 2rem; padding: 2rem; border-left: 4px solid var(--warning);">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 2rem;">
+            <div>
+                <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Batch Configuration</h3>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <select id="month_selector" onchange="changeMonth()" style="background: #ffffff; border: 1px solid rgba(0,0,0,0.1); color: #000000; padding: 8px 16px; border-radius: 8px; font-size: 0.9rem; font-weight: 800; outline: none; cursor: pointer; appearance: auto; -webkit-appearance: menulist;">
+                        {% for m in months_list %}
+                        <option value="{{ m }}" {% if m == current_month %}selected{% endif %} style="color: black; background: white;">{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="month" value="{{ current_month }}">
+                </div>
+            </div>
+            <div class="form-group" style="min-width: 250px;">
+                <label style="color: white; font-weight: 700; font-size: 0.9rem; margin-bottom: 8px; display: block;">Total Classes Held</label>
+                <input type="number" name="total_classes" id="total_classes" value="{{ (existing.values()|first).total_classes if existing else 0 }}" 
+                       class="form-control" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 12px; border-radius: 10px; width: 100%; font-weight: 800; font-size: 1.2rem;" required>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-card table-box animate-fade-in" style="margin-bottom: 3rem;">
+        <div style="padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="font-size: 1rem; font-weight: 700; color: white;">Student Roll Call</h3>
+            <span class="status-badge" style="background: rgba(255,255,255,0.05); color: var(--text-muted); font-size: 0.65rem;">{{ students|length }} ENROLLED</span>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Roll Number</th>
+                    <th>Student Name</th>
+                    <th>Attendance Count</th>
+                    <th>Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                {% set record = existing.get(student.id) %}
+                <tr>
+                    <td style="font-weight: 800; color: var(--primary);">{{ student.roll_no }}</td>
+                    <td>
+                        <div style="font-weight: 700; color: white;">{{ student.name }}</div>
+                        <div style="font-size: 0.65rem; color: var(--text-muted);">{{ student.email }}</div>
+                    </td>
+                    <td>
+                        <input type="number" name="attended_{{ student.id }}" value="{{ record.attended_classes if record else 0 }}" 
+                               class="form-control attendance-input" data-student-id="{{ student.id }}"
+                               style="width: 100px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 8px; border-radius: 8px; text-align: center; font-weight: 700;" min="0">
+                    </td>
+                    <td>
+                        <span id="pct-{{ student.id }}" class="status-badge {{ 'approved-vibrant' if record and (record.attended_classes / record.total_classes * 100) >= 75 else 'rejected-vibrant' if record else '' }}" style="font-size: 0.7rem;">
+                            {% if record and record.total_classes > 0 %}
+                                {{ (record.attended_classes / record.total_classes * 100)|round(1) }}%
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <div style="padding: 2rem; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: flex-end; gap: 1rem;">
+            <a href="{{ url_for('teacher_attendance_list') }}" class="glass-card" style="padding: 12px 30px; text-decoration: none; color: white; font-weight: 700;">Cancel</a>
+            <button type="submit" class="glow-button" style="padding: 12px 40px; border: none; cursor: pointer;">
+                Commit Records
+            </button>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const totalInput = document.getElementById('total_classes');
+        const attendanceInputs = document.querySelectorAll('.attendance-input');
+
+        function updatePercentages() {
+            const total = parseFloat(totalInput.value) || 0;
+            
+            attendanceInputs.forEach(input => {
+                const studentId = input.dataset.studentId;
+                let attended = parseFloat(input.value) || 0;
+                
+                // Validation: Attendance cannot exceed Total
+                if (attended > total && total > 0) {
+                    attended = total;
+                    input.value = total;
+                } else if (attended < 0) {
+                    attended = 0;
+                    input.value = 0;
+                }
+
+                const pctSpan = document.getElementById(`pct-${studentId}`);
+                
+                if (total > 0) {
+                    const pct = ((attended / total) * 100).toFixed(1);
+                    pctSpan.innerText = pct + '%';
+                    
+                    // Update coloring with brighter colors
+                    if (pct >= 75) {
+                        pctSpan.className = 'status-badge approved-vibrant';
+                    } else {
+                        pctSpan.className = 'status-badge rejected-vibrant';
+                    }
+                } else {
+                    pctSpan.innerText = 'N/A';
+                    pctSpan.className = 'status-badge';
+                    pctSpan.style.background = 'rgba(255,255,255,0.05)';
+                    pctSpan.style.color = 'var(--text-muted)';
+                }
+            });
+        }
+
+        totalInput.addEventListener('input', updatePercentages);
+        attendanceInputs.forEach(input => {
+            input.addEventListener('input', updatePercentages);
+        });
+    });
+
+    function changeMonth() {
+        const month = document.getElementById('month_selector').value;
+        const url = new URL(window.location.href);
+        url.searchParams.set('month', month);
+        window.location.href = url.toString();
+    }
+</script>
+
+<style>
+.approved-vibrant {
+    background: #22c55e !important;
+    color: white !important;
+    box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+    font-weight: 800;
+}
+.rejected-vibrant {
+    background: #ef4444 !important;
+    color: white !important;
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+    font-weight: 800;
+}
+</style>
+{% endblock %}

@@ -1,71 +1,184 @@
 {% extends "base.html" %}
 
-{% block title %}Manage Student Leaves - LeaveSystem{% endblock %}
-{% block page_title %}Student Leave Requests{% endblock %}
+{% block title %}Approvals Queue | LeaveHub{% endblock %}
+{% block page_title %}Batch Submissions{% endblock %}
 
 {% block content %}
-<div class="table-container">
+<div class="glass-card table-box animate-fade-in" style="margin-bottom: 3rem;">
+    <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <div>
+            <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Student Leave Requests</h3>
+            <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 4px;">Review recommendations and finalize status for your batch.</p>
+        </div>
+        <div class="status-badge" style="background: rgba(139, 92, 246, 0.1); color: var(--accent); font-size: 0.7rem;">
+            <i class="fas fa-microchip" style="margin-right: 8px;"></i> MENTOR PROTOCOL
+        </div>
+    </div>
+
     <table>
         <thead>
             <tr>
-                <th>Student</th>
-                <th>Roll Number</th>
-                <th>Dates</th>
-                <th>Reason</th>
-                <th>Doc</th>
+                <th>Student Detail</th>
+                <th>Leave Schedule</th>
+                <th>Documentation</th>
+                <th>Reasoning</th>
+                <th>Remarks</th>
                 <th>Status</th>
-                <th>Actions</th>
+                <th>Decision Logic</th>
             </tr>
         </thead>
         <tbody>
             {% for leave in leaves %}
             <tr>
-                <td style="font-weight: 600;">{{ leave.user.name }}</td>
-                <td><code style="background: #f1f5f9; padding: 0.2rem 0.4rem; border-radius: 4px;">{{ leave.user.roll_no }}</code></td>
-                <td>{{ leave.dates }}</td>
-                <td style="max-width: 300px;">{{ leave.reason }}</td>
                 <td>
-                    {% if leave.document_path %}
-                    <a href="{{ url_for('static', filename='uploads/' + leave.document_path) }}" target="_blank" class="btn" style="padding: 0.2rem 0.4rem; background: #f1f5f9; color: var(--primary);">
-                        <i class="fas fa-file-alt"></i> View
-                    </a>
-                    {% else %}
-                    <span style="color: #cbd5e1; font-size: 0.75rem;">None</span>
-                    {% endif %}
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 32px; height: 32px; background: rgba(139, 92, 246, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--accent); font-weight: 800; font-size: 0.75rem;">
+                            {{ leave.user.name[0] | upper }}
+                        </div>
+                        <div>
+                            <div style="font-weight: 700; color: white;">{{ leave.user.name }}</div>
+                            <div style="font-size: 0.7rem; color: var(--text-muted);">Roll: {{ leave.user.roll_no }}</div>
+                        </div>
+                    </div>
                 </td>
                 <td>
-                    <span class="badge {% if 'Forwarded' in leave.status %}badge-forwarded{% else %}badge-{{ leave.status.lower() }}{% endif %}">
-                        {{ leave.status }}
+                    <div style="font-weight: 700; color: var(--primary);">{{ leave.dates }}</div>
+                </td>
+                <td style="text-align: center;">
+                    {% if leave.document_path %}
+                    <a href="{{ url_for('static', filename='uploads/' + leave.document_path) }}" target="_blank" style="color: var(--highlight);">
+                        <i class="fas fa-file-circle-check" style="font-size: 1.2rem;"></i>
+                    </a>
+                    {% else %}
+                    <i class="fas fa-minus" style="opacity: 0.1;"></i>
+                    {% endif %}
+                </td>
+                <td style="max-width: 180px; font-size: 0.85rem; color: var(--text-muted); font-style: italic;">
+                    "{{ leave.reason }}"
+                </td>
+                <td style="max-width: 150px; font-size: 0.8rem; color: var(--accent);">
+                    {{ leave.remark if leave.remark else '--' }}
+                </td>
+                <td>
+                    {% set effective = get_effective_status(leave) %}
+                    <span class="status-badge {{ effective|lower|replace(' ', '-') }}">
+                        {{ effective }}
                     </span>
                 </td>
                 <td>
-                    {% if leave.status == 'Pending' %}
-                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                        <a href="{{ url_for('update_leave', leave_id=leave.id, status='Approved') }}" class="btn btn-success" style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">
-                            <i class="fas fa-check"></i> Approve
-                        </a>
-                        <a href="{{ url_for('update_leave', leave_id=leave.id, status='Rejected') }}" class="btn btn-danger" style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">
-                            <i class="fas fa-times"></i> Reject
-                        </a>
-                        <a href="{{ url_for('update_leave', leave_id=leave.id, status='Forwarded to Admin') }}" class="btn" style="padding: 0.4rem 0.6rem; font-size: 0.75rem; background: var(--secondary); color: white;">
-                            <i class="fas fa-share"></i> Forward to Admin
-                        </a>
+                    {% if effective == 'Pending' %}
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <input type="text" id="remark-{{ leave.id }}" placeholder="Add remark..." 
+                               style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 4px 8px; font-size: 0.75rem; color: white; width: 100%;">
+                        <button onclick="showAttendance({{ leave.user.id }}, '{{ leave.user.name }}')" class="status-badge" style="background: rgba(255,255,255,0.05); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.2); cursor: pointer; padding: 10px; border-radius: 12px; margin-bottom: 5px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i class="fas fa-eye"></i> <span style="font-size: 0.65rem; font-weight: 800;">VIEW ATTENDANCE</span>
+                        </button>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="handleAction({{ leave.id }}, 'Approved')" class="status-badge approved" style="border: none; cursor: pointer; padding: 10px; border-radius: 12px; flex: 1;" title="Approve">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            <button onclick="handleAction({{ leave.id }}, 'Rejected')" class="status-badge rejected" style="border: none; cursor: pointer; padding: 10px; border-radius: 12px; flex: 1;" title="Reject">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button onclick="handleAction({{ leave.id }}, 'Forwarded to Admin')" class="status-badge" style="background: rgba(255,255,255,0.05); color: var(--highlight); border: 1px solid rgba(34, 211, 238, 0.2); cursor: pointer; padding: 10px; border-radius: 12px; flex: 1;" title="Forward to Admin">
+                                <i class="fas fa-share-nodes"></i>
+                            </button>
+                        </div>
                     </div>
+                    {% elif effective == 'Not Approved (Expired)' %}
+                    <div style="font-size: 0.65rem; font-weight: 800; color: var(--danger); opacity: 0.7;">TIMED OUT / EXPIRED</div>
                     {% elif leave.status == 'Forwarded to Admin' %}
-                    <span style="color: var(--primary); font-size: 0.75rem; font-weight: 600;">Awaiting Admin Action</span>
+                    <div style="font-size: 0.65rem; font-weight: 700; color: var(--accent);">ESCALATED TO ADMIN</div>
                     {% else %}
-                    <span style="color: var(--text-muted); font-size: 0.75rem;">Processed</span>
+                    <div style="color: var(--text-muted); font-size: 0.65rem; font-weight: 800; opacity: 0.5;">DECIDED</div>
                     {% endif %}
                 </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-muted);">
-                    No student leave requests found.
+                <td colspan="6" style="text-align: center; padding: 5rem; color: var(--text-muted);">
+                    <i class="fas fa-check-double" style="display: block; font-size: 3rem; margin-bottom: 2rem; opacity: 0.1;"></i>
+                    All student submissions processed.
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+
+<!-- Attendance Modal -->
+<div id="attendanceModal" class="glass-card" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 600px; z-index: 9999; padding: 0; overflow: hidden; box-shadow: 0 0 100px rgba(0,0,0,0.8); background: #0a0f1e;">
+    <div style="padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+        <h3 id="modalStudentName" style="font-weight: 800; color: white;">Attendance Record</h3>
+        <button onclick="closeAttendanceModal()" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem;"><i class="fas fa-times"></i></button>
+    </div>
+    <div style="padding: 1.5rem; max-height: 400px; overflow-y: auto;">
+        <table style="width: 100%;">
+            <thead>
+                <tr>
+                    <th style="font-size: 0.7rem; text-align: left;">SUBJECT</th>
+                    <th style="font-size: 0.7rem; text-align: center;">ATTENDED / TOTAL</th>
+                    <th style="font-size: 0.7rem; text-align: right;">PERCENTAGE</th>
+                </tr>
+            </thead>
+            <tbody id="attendanceBody">
+                <!-- Data populated via JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+<div id="modalOverlay" onclick="closeAttendanceModal()" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9998; backdrop-filter: blur(5px);"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function handleAction(leaveId, status) {
+        const remarkInput = document.getElementById(`remark-${leaveId}`);
+        const remark = remarkInput ? remarkInput.value : '';
+        window.location.href = `/update_leave/${leaveId}/${status}?remark=${encodeURIComponent(remark)}`;
+    }
+
+    async function showAttendance(studentId, studentName) {
+        document.getElementById('modalStudentName').innerText = `Engagement Audit: ${studentName}`;
+        const body = document.getElementById('attendanceBody');
+        body.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 2rem;">Loading details...</td></tr>';
+        
+        document.getElementById('attendanceModal').style.display = 'block';
+        document.getElementById('modalOverlay').style.display = 'block';
+
+        try {
+            const res = await fetch(`/api/student_attendance/${studentId}`);
+            const data = await res.json();
+            
+            if (data.length === 0) {
+                body.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 2rem; color: var(--text-muted);">No records found for this student.</td></tr>';
+                return;
+            }
+
+            body.innerHTML = '';
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                const pctColor = item.percentage >= 75 ? '#22c55e' : '#ef4444';
+                row.innerHTML = `
+                    <td style="font-weight: 700; color: white;">${item.subject}</td>
+                    <td style="text-align: center; font-weight: 800; color: var(--text-muted);">${item.attended} / ${item.total}</td>
+                    <td style="text-align: right;">
+                        <span class="status-badge" style="background: ${pctColor} !important; color: white !important; box-shadow: 0 0 10px ${pctColor}66;">
+                            ${item.percentage}%
+                        </span>
+                    </td>
+                `;
+                body.appendChild(row);
+            });
+        } catch (e) {
+            body.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 2rem; color: #ef4444;">Error fetching data.</td></tr>';
+        }
+    }
+
+    function closeAttendanceModal() {
+        document.getElementById('attendanceModal').style.display = 'none';
+        document.getElementById('modalOverlay').style.display = 'none';
+    }
+</script>
 {% endblock %}

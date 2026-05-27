@@ -1,71 +1,126 @@
 {% extends "base.html" %}
 
-{% block title %}Admin Dashboard - LeaveSystem{% endblock %}
-{% block page_title %}Administrator Dashboard{% endblock %}
+{% block title %}Admin Dashboard | LeaveHub{% endblock %}
+{% block page_title %}System Administration{% endblock %}
 
 {% block content %}
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-icon blue">
-            <i class="fas fa-chalkboard-teacher"></i>
+<div class="card-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem;">
+    <!-- Total Teachers Card -->
+    <div class="glass-card animate-fade-in" style="border-left: 4px solid var(--primary);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <div style="width: 50px; height: 50px; background: rgba(99, 102, 241, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--primary);">
+                <i class="fas fa-user-tie" style="font-size: 1.5rem;"></i>
+            </div>
+            <div style="font-size: 0.7rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Faculty</div>
         </div>
-        <div class="stat-info">
-            <h3>Total Teachers</h3>
-            <p>{{ teacher_count }}</p>
+        <h3 style="font-size: 2.5rem; font-weight: 800; color: white; margin-bottom: 0.5rem;">{{ teacher_count }}</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Registered faculty members</p>
+    </div>
+
+    <!-- Total Students Card -->
+    <div class="glass-card animate-fade-in" style="border-left: 4px solid var(--accent);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <div style="width: 50px; height: 50px; background: rgba(139, 92, 246, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--accent);">
+                <i class="fas fa-graduation-cap" style="font-size: 1.5rem;"></i>
+            </div>
+            <div style="font-size: 0.7rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Enrollment</div>
+        </div>
+        <h3 style="font-size: 2.5rem; font-weight: 800; color: white; margin-bottom: 0.5rem;">{{ student_count }}</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Total active students</p>
+    </div>
+
+    <!-- Pending Actions Card -->
+    {% if pending_leaves > 0 %}
+    <div class="glass-card animate-fade-in" style="border-left: 4px solid var(--warning); background: rgba(250, 204, 21, 0.03);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <div style="width: 50px; height: 50px; background: rgba(250, 204, 21, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--warning);">
+                <i class="fas fa-clock-rotate-left" style="font-size: 1.5rem;"></i>
+            </div>
+            <div id="live-indicator" style="width: 10px; height: 10px; background: var(--warning); border-radius: 50%; box-shadow: 0 0 15px var(--warning); animation: pulse 2s infinite;"></div>
+        </div>
+        <h3 style="font-size: 2.5rem; font-weight: 800; color: white; margin-bottom: 0.5rem;">{{ pending_leaves }}</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Requests awaiting review</p>
+    </div>
+    {% else %}
+    <div class="glass-card animate-fade-in" style="border-left: 4px solid var(--success); background: rgba(34, 197, 94, 0.03);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <div style="width: 50px; height: 50px; background: rgba(34, 197, 94, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--success);">
+                <i class="fas fa-check-circle" style="font-size: 1.5rem;"></i>
+            </div>
+        </div>
+        <h3 style="font-size: 2.5rem; font-weight: 800; color: white; margin-bottom: 0.5rem;">0</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">All caught up!</p>
+    </div>
+    {% endif %}
+</div>
+
+<div style="display: grid; grid-template-columns: 1.8fr 1fr; gap: 1.5rem; margin-bottom: 3rem;">
+    <!-- Shortcuts Box -->
+    <div class="glass-card animate-fade-in">
+        <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 2rem; color: white;">Management Hub</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+            <a href="{{ url_for('manage_teachers') }}" class="glass-card" style="padding: 1.5rem; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
+                <i class="fas fa-user-tie" style="font-size: 1.8rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
+                <span style="font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Faculty</span>
+            </a>
+            <a href="{{ url_for('manage_students') }}" class="glass-card" style="padding: 1.5rem; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
+                <i class="fas fa-user-graduate" style="font-size: 1.8rem; color: var(--accent); margin-bottom: 1rem; display: block;"></i>
+                <span style="font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Students</span>
+            </a>
+            <a href="{{ url_for('view_all_leaves') }}" class="glass-card" style="padding: 1.5rem; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(99, 102, 241, 0.1);">
+                <i class="fas fa-clipboard-list" style="font-size: 1.8rem; color: white; margin-bottom: 1rem; display: block;"></i>
+                <span style="font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Portal</span>
+            </a>
+            <a href="{{ url_for('manage_faculty_leaves') }}" class="glass-card" style="padding: 1.5rem; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
+                <i class="fas fa-boxes-stacked" style="font-size: 1.8rem; color: var(--highlight); margin-bottom: 1rem; display: block;"></i>
+                <span style="font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Quota</span>
+            </a>
+            <a href="{{ url_for('manage_settings') }}" class="glass-card" style="padding: 1.5rem; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
+                <i class="fas fa-gears" style="font-size: 1.8rem; color: var(--text-muted); margin-bottom: 1rem; display: block;"></i>
+                <span style="font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Session</span>
+            </a>
         </div>
     </div>
-    <div class="stat-card">
-        <div class="stat-icon green">
-            <i class="fas fa-user-graduate"></i>
-        </div>
-        <div class="stat-info">
-            <h3>Total Students</h3>
-            <p>{{ student_count }}</p>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon orange">
-            <i class="fas fa-clock"></i>
-        </div>
-        <div class="stat-info">
-            <h3>Pending Actions</h3>
-            <p>{{ pending_leaves }}</p>
+
+    <!-- Health Box -->
+    <div class="glass-card animate-fade-in" style="background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.1), transparent);">
+        <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 2rem; color: white;">System Engine</h3>
+        
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Core Status</span>
+                <span class="status-badge approved" style="font-size: 0.65rem;">Active</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Gateway Time</span>
+                <span id="gateway-clock" style="color: white; font-weight: 800; font-size: 1rem; font-family: monospace;"></span>
+            </div>
+            <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; margin-top: 1rem;">
+                <div style="width: 100%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: 1s ease;"></div>
+            </div>
+            <p style="font-size: 0.7rem; color: var(--text-muted); text-align: center; font-weight: 500;">AI Engine & Socket.IO clusters are operational.</p>
         </div>
     </div>
 </div>
 
-<div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-    <div class="card-section">
-        <h2 style="margin-bottom: 1.5rem; font-size: 1.25rem;">Quick Navigation</h2>
-        <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
-            <a href="{{ url_for('manage_teachers') }}" class="btn btn-primary">
-                <i class="fas fa-chalkboard-teacher"></i> Teachers List
-            </a>
-            <a href="{{ url_for('manage_students') }}" class="btn btn-primary" style="background: var(--secondary);">
-                <i class="fas fa-user-graduate"></i> Students List
-            </a>
-            <a href="{{ url_for('view_all_leaves') }}" class="btn btn-success">
-                <i class="fas fa-check-circle"></i> Review All Leaves
-            </a>
-        </div>
-    </div>
-    
-    <div class="card-section" style="background: #fff; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-        <h2 style="margin-bottom: 1rem; font-size: 1.25rem;">System Status</h2>
-        <p style="color: var(--text-muted);">Database connected and system operational.</p>
-        <p style="margin-top: 1rem; font-weight: 600;">Current Time: <span id="clock" style="color: var(--primary);"></span></p>
-    </div>
-</div>
 
+
+<style>
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.5); opacity: 0.5; }
+    100% { transform: scale(1); opacity: 1; }
+}
+</style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    function updateClock() {
+    function updateGatewayClock() {
         const now = new Date();
-        document.getElementById('clock').innerText = now.toLocaleTimeString();
+        document.getElementById('gateway-clock').innerText = now.toLocaleTimeString([], { hour12: false });
     }
-    setInterval(updateClock, 1000);
-    updateClock();
+    setInterval(updateGatewayClock, 1000);
+    updateGatewayClock();
 </script>
 {% endblock %}

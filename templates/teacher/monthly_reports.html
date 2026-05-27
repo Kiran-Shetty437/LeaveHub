@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Monthly Analytics | LeaveHub{% endblock %}
+{% block page_title %}Class Behavioral Reports{% endblock %}
+
+{% block extra_css %}
+<!-- Analytics specific styles if any -->
+{% endblock %}
+
+{% block content %}
+<div class="glass-card animate-fade-in" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05)); padding: 2rem; margin-bottom: 2.5rem; border-left: 4px solid var(--primary);">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h2 style="font-size: 1.8rem; font-weight: 800; color: white; letter-spacing: -1px;">Monthly Insights</h2>
+            <p style="color: var(--text-muted); font-size: 1rem; margin-top: 5px;">
+                Classes: <span style="color: white; font-weight: 700;">{{ mentored_classes | join(', ') }}</span> 
+                • Data for <span style="color: var(--primary); font-weight: 800;">{{ now.strftime('%B %Y') }}</span>
+            </p>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 2.5rem; font-weight: 800; color: white;">{{ total_month_leaves }}</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Approved Leaves</div>
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 3rem;">
+    <!-- Main Chart Card -->
+    <div class="glass-card animate-fade-in" style="padding: 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Individual Absence Distribution</h3>
+            <i class="fas fa-chart-bar" style="color: var(--primary);"></i>
+        </div>
+        <div style="height: 350px;">
+            <canvas id="studentChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Stats Summary Card -->
+    <div class="glass-card animate-fade-in" style="padding: 2rem; background: radial-gradient(circle at top right, rgba(139, 92, 246, 0.1), transparent);">
+        <h3 style="font-size: 1.1rem; font-weight: 800; color: white; margin-bottom: 2rem;">Reason Breakdown</h3>
+        <div style="height: 250px; display: flex; align-items: center; justify-content: center;">
+            <canvas id="reasonChart"></canvas>
+        </div>
+        <div style="margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem;">
+            <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.6;">
+                <i class="fas fa-info-circle" style="color: var(--primary); margin-right: 8px;"></i>
+                This graph identifies the most common keywords found in leave justifications for this month.
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Table list of top absentees -->
+<div class="glass-card table-box animate-fade-in" style="margin-bottom: 3rem;">
+    <div style="padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Rankings by Leave Frequency</h3>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Student Rank</th>
+                <th>Full Name</th>
+                <th>Total Monthly Leaves</th>
+                <th>Status Check</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for i in range(chart_data.labels|length) %}
+            <tr>
+                <td style="font-weight: 800; color: var(--text-muted); font-size: 0.8rem;">#{{ loop.index }}</td>
+                <td style="font-weight: 700; color: white;">{{ chart_data.labels[i] }}</td>
+                <td style="font-weight: 800; color: var(--primary);">{{ chart_data.counts[i] }}</td>
+                <td>
+                    <span class="status-badge {{ 'rejected' if chart_data.counts[i] > 3 else 'approved' }}" style="font-size: 0.65rem;">
+                        {{ 'CRITICAL' if chart_data.counts[i] > 3 else 'STABLE' }}
+                    </span>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" style="text-align: center; padding: 4rem; color: var(--text-muted);">No attendance data recorded for this month.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Detailed Behavioral log -->
+<div class="glass-card table-box animate-fade-in" style="margin-bottom: 3rem;">
+    <div style="padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Detailed Behavioral Log</h3>
+        <div class="status-badge" style="background: rgba(255,255,255,0.05); color: var(--text-muted); font-size: 0.65rem;">MONTHLY AUDIT</div>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Student Detail</th>
+                <th>Leave Interval</th>
+                <th>Documented Reason</th>
+                <th>Recorded At</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for leave in current_month_leaves[::-1] %}
+            <tr>
+                <td>
+                    <div style="font-weight: 700; color: white;">{{ leave.user.name }}</div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted);">{{ leave.user.department }} | Roll: {{ leave.user.roll_no }}</div>
+                </td>
+                <td style="font-weight: 800; color: var(--primary);">{{ leave.dates }}</td>
+                <td style="font-size: 0.85rem; color: var(--text-muted); font-style: italic; max-width: 300px;">
+                    "{{ leave.reason }}"
+                    {% if leave.remark %}
+                        <div style="font-size: 0.7rem; color: var(--accent); margin-top: 4px; font-weight: 600;">Remark: {{ leave.remark }}</div>
+                    {% endif %}
+                </td>
+                <td style="color: rgba(255,255,255,0.3); font-size: 0.75rem;">
+                    {{ leave.created_at.strftime('%d %b, %H:%M') }}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" style="text-align: center; padding: 4rem; color: var(--text-muted);">No detailed logs available for this period.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script id="chart-data" type="application/json">{{ chart_data | tojson | safe }}</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const chartContext = document.getElementById('studentChart').getContext('2d');
+        const reasonContext = document.getElementById('reasonChart').getContext('2d');
+
+        const chartData = JSON.parse(document.getElementById('chart-data').textContent);
+
+        // Student Chart
+        new Chart(chartContext, {
+            type: 'bar',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    label: 'Leaves Count',
+                    data: chartData.counts,
+                    backgroundColor: 'rgba(99, 102, 241, 0.4)',
+                    borderColor: '#6366f1',
+                    borderWidth: 2,
+                    borderRadius: 8,
+                    hoverBackgroundColor: 'rgba(99, 102, 241, 0.6)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // Reason Chart
+        new Chart(reasonContext, {
+            type: 'doughnut',
+            data: {
+                labels: chartData.reason_labels,
+                datasets: [{
+                    data: chartData.reason_counts,
+                    backgroundColor: ['#6366f1', '#8b5cf6', '#22d3ee', '#f87171'],
+                    borderWidth: 0,
+                    cutout: '80%'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 10, padding: 20 } }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

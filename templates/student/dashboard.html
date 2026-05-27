@@ -1,76 +1,107 @@
 {% extends "base.html" %}
 
-{% block title %}Student Dashboard - LeaveSystem{% endblock %}
-{% block page_title %}Student Portal{% endblock %}
+{% block title %}Student Dashboard | LeaveHub{% endblock %}
+{% block page_title %}Student Overview{% endblock %}
 
 {% block content %}
-<!-- Profile Header -->
-<div style="margin-bottom: 2rem; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 2rem; border-radius: 1.5rem; color: white;">
-    <h2 style="font-size: 1.75rem; margin-bottom: 0.5rem;">Welcome, {{ session.get('name') }}!</h2>
-    <p style="opacity: 0.9; font-size: 1.1rem;">
-        <i class="fas fa-graduation-cap"></i> Class: <strong>{{ session.get('department') }}</strong>
-    </p>
-</div>
-
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-icon purple">
-            <i class="fas fa-file-signature"></i>
-        </div>
-        <div class="stat-info">
-            <h3>My Leave Status</h3>
-            {% if my_leaves %}
-                <p style="font-size: 1rem; color: var(--primary);">{{ my_leaves[-1].status }}</p>
-            {% else %}
-                <p style="font-size: 1rem; color: var(--text-muted);">No requests</p>
-            {% endif %}
-        </div>
+<!-- Student Header -->
+<div class="glass-card animate-fade-in" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05)); min-height: 160px; display: flex; align-items: center; margin-bottom: 2rem; position: relative; overflow: hidden; border-left: 4px solid var(--primary);">
+    <div style="position: absolute; right: 5%; top: -20px; font-size: 10rem; color: rgba(255,255,255,0.03); transform: rotate(-15deg);">
+        <i class="fas fa-user-graduate"></i>
+    </div>
+    <div style="padding-left: 2rem;">
+        <h2 style="font-size: 2.2rem; font-weight: 800; color: white; letter-spacing: -1px; margin-bottom: 5px;">Welcome back, {{ session.get('name') }}</h2>
+        <p style="color: var(--text-muted); font-size: 1.1rem;">
+            Class: <span style="color: white; font-weight: 700;">{{ session.get('department') }}</span> • Roll No: <span style="color: var(--primary); font-weight: 800;">{{ session.get('roll_no', 'N/A') }}</span>
+        </p>
     </div>
 </div>
 
-<div class="card-section" style="background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-        <h2 style="font-size: 1.25rem;">My Leave History</h2>
-        <a href="{{ url_for('apply_leave') }}" class="btn btn-primary btn-sm" style="padding: 0.5rem 1rem;">
-            <i class="fas fa-plus"></i> New Request
+<div class="card-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem;">
+    <!-- Stat 1 -->
+    <div class="glass-card animate-fade-in" style="border-left: 4px solid var(--accent);">
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 1.5rem;">
+            <div style="width: 44px; height: 44px; background: rgba(139, 92, 246, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--accent);">
+                <i class="fas fa-file-signature"></i>
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Recent Request</p>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                {% if my_leaves %}
+                <span class="status-badge {{ get_effective_status(my_leaves[-1])|lower|replace(' ', '-') }}" style="font-size: 0.8rem;">
+                    {{ get_effective_status(my_leaves[-1]) }}
+                </span>
+                {% if my_leaves[-1].contact_teacher and get_effective_status(my_leaves[-1]) == 'Pending' %}
+                <div style="margin-top: 8px; font-size: 0.7rem; color: #ff4d4d; animation: pulse 2s infinite; font-weight: 600;">
+                    <i class="fas fa-exclamation-triangle"></i> Contact teacher
+                </div>
+                {% endif %}
+                {% else %}
+                <span style="color: var(--text-muted); font-size: 0.9rem;">No active requests</span>
+                {% endif %}
+            </div>
+            <a href="{{ url_for('apply_leave') }}" style="color: var(--primary); font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">View Details</a>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="glass-card animate-fade-in" style="display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at center, rgba(99, 102, 241, 0.1), transparent);">
+        <a href="{{ url_for('apply_leave') }}" class="glow-button" style="width: 100%; justify-content: center;">
+            <i class="fas fa-plus-circle"></i> New Leave Request
         </a>
     </div>
-    
-    <div class="table-container" style="box-shadow: none;">
-        <table>
-            <thead>
-                <tr>
-                    <th>Requested On</th>
-                    <th>Dates</th>
-                    <th>Reason</th>
-                    <th>Doc</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for leave in my_leaves[::-1] %}
-                <tr>
-                    <td>{{ leave.created_at.strftime('%Y-%m-%d') }}</td>
-                    <td style="font-weight: 500;">{{ leave.dates }}</td>
-                    <td style="max-width: 250px;">{{ leave.reason }}</td>
-                    <td>
-                        {% if leave.document_path %}
-                        <a href="{{ url_for('static', filename='uploads/' + leave.document_path) }}" target="_blank" style="color: var(--primary);">
-                            <i class="fas fa-file-pdf"></i> View
-                        </a>
-                        {% else %}
-                        -
-                        {% endif %}
-                    </td>
-                    <td><span class="badge badge-{{ leave.status.lower() }}">{{ leave.status }}</span></td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">You haven't applied for any leaves yet.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+</div>
+
+<!-- Recent Transactions -->
+<div class="glass-card table-box animate-fade-in" style="margin-bottom: 3rem;">
+    <div style="padding: 1.5rem 1.5rem 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Application History</h3>
+        <i class="fas fa-history" style="color: var(--text-muted); opacity: 0.5;"></i>
     </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Date Applied</th>
+                <th>Reason for Leave</th>
+                <th>Leave Schedule</th>
+                <th>Final Status</th>
+                <th>Remarks</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for leave in my_leaves[::-1] %}
+            <tr>
+                <td style="color: var(--text-muted); font-size: 0.85rem; white-space: nowrap;">
+                    {{ leave.created_at.strftime('%d %b, %Y') }}
+                </td>
+                <td style="font-weight: 600; color: white; max-width: 250px;">{{ leave.reason }}</td>
+                <td style="font-weight: 700; color: var(--primary);">{{ leave.dates }}</td>
+                <td>
+                    <span class="status-badge {{ get_effective_status(leave)|lower|replace(' ', '-') }}">
+                        {{ get_effective_status(leave) }}
+                    </span>
+                {% if leave.contact_teacher and get_effective_status(leave) == 'Pending' %}
+                <div style="margin-top: 8px; font-size: 0.75rem; color: #ff4d4d; display: flex; align-items: center; gap: 5px; animation: pulse 2s infinite;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Contact teacher immediately</span>
+                </div>
+                {% endif %}
+                </td>
+                <td style="font-size: 0.8rem; color: var(--accent); font-style: italic;">
+                    {{ leave.remark if leave.remark else '--' }}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" style="text-align: center; padding: 4rem; color: var(--text-muted);">
+                    <i class="fas fa-inbox" style="display: block; font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.1;"></i>
+                    You haven't applied for any leaves yet.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 {% endblock %}

@@ -1,62 +1,68 @@
 {% extends "base.html" %}
 
-{% block title %}Manage Subjects - LeaveSystem{% endblock %}
-{% block page_title %}Curriculum Management{% endblock %}
+{% block title %}Curriculum Center | LeaveHub{% endblock %}
+{% block page_title %}Subject Management{% endblock %}
 
 {% block content %}
-<div class="card-section" style="margin-bottom: 2rem;">
-    <h2 style="margin-bottom: 1.5rem; font-size: 1.25rem;">Add New Subject</h2>
-    <form action="{{ url_for('manage_subjects') }}" method="POST" style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 1rem; align-items: end;">
+<!-- Creator Box -->
+<div class="glass-card animate-fade-in" style="margin-bottom: 2.5rem; background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.05), transparent);">
+    <div style="margin-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1rem;">
+        <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Define New Curriculum</h3>
+    </div>
+    
+    <form action="{{ url_for('manage_subjects') }}" method="POST" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; align-items: end;">
         <div class="form-group">
-            <label>Select Class</label>
-            <select name="class_name" class="form-control">
-                <option value="">-- Choose Existing Class --</option>
+            <label style="color: var(--text-muted); font-size: 0.75rem; font-weight: 800; text-transform: uppercase;">Existing Class</label>
+            <select name="class_name" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; color: white; width: 100%; cursor: pointer;">
+                <option value="" style="background: #1e293b; color: white;">-- NEW CLASS --</option>
                 {% for class_name in mapping.keys() %}
-                <option value="{{ class_name }}">{{ class_name }}</option>
+                <option value="{{ class_name }}" style="background: #1e293b; color: white;">{{ class_name }}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="form-group">
-            <label>Or Enter New Class Name</label>
-            <input type="text" name="new_class_name" class="form-control" placeholder="e.g. IVBCA">
+            <label style="color: var(--text-muted); font-size: 0.75rem; font-weight: 800; text-transform: uppercase;">Or Create Class</label>
+            <input type="text" name="new_class_name" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; color: white; width: 100%;" placeholder="e.g. VISC">
         </div>
         <div class="form-group">
-            <label>Subject Name</label>
-            <input type="text" name="subject" class="form-control" placeholder="e.g. Python, AI, etc." required>
+            <label style="color: var(--text-muted); font-size: 0.75rem; font-weight: 800; text-transform: uppercase;">Subject Code/Name</label>
+            <input type="text" name="subject" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; color: white; width: 100%;" placeholder="e.g. Data Structures" required>
         </div>
-        <button type="submit" class="btn btn-primary" style="height: 48px; padding: 0 1.5rem;">
-            <i class="fas fa-plus"></i> Add Subject
+        <button type="submit" class="glow-button" style="height: 50px; justify-content: center;">
+            <i class="fas fa-plus"></i> ADD TO SYSTEM
         </button>
     </form>
 </div>
 
-<div class="grid-2" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5rem;">
+<!-- Class Map Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; margin-bottom: 3rem;">
     {% for class_name, subjects in mapping.items() %}
-    <div class="card-section" style="background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-        <h3 style="color: var(--primary); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
-            {{ class_name }}
-            <span class="badge" style="background: #e2e8f0; color: #475569; font-size: 0.75rem;">{{ subjects|length }} Subjects</span>
-        </h3>
-        <ul style="list-style: none; padding: 0; margin: 0;">
-            {% for subject in subjects %}
-            <li style="padding: 0.75rem 0; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 0.95rem;">{{ subject }}</span>
-                <button onclick="deleteSubject('{{ class_name }}', '{{ subject }}')" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 0.25rem;">
-                    <i class="fas fa-trash-alt"></i>
-                </button>
-            </li>
-            {% endfor %}
-        </ul>
+    <div class="glass-card animate-fade-in" style="padding: 0; overflow: hidden;">
+        <div style="background: rgba(99, 102, 241, 0.05); padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <h4 style="font-weight: 800; color: white; letter-spacing: 1px;">{{ class_name }}</h4>
+            <span class="status-badge" style="background: rgba(255,255,255,0.05); font-size: 0.65rem;">{{ subjects|length }} UNITS</span>
+        </div>
+        <div style="padding: 1.5rem;">
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: 10px;">
+                {% for subject in subjects %}
+                <li style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 0.75rem 1rem; border-radius: 12px; transition: 0.3s; border: 1px solid transparent;" onmouseover="this.style.borderColor='rgba(99,102,241,0.2)'" onmouseout="this.style.borderColor='transparent'">
+                    <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-muted);">{{ subject }}</span>
+                    <button onclick="deleteSubject('{{ class_name }}', '{{ subject }}')" style="background: none; border: none; color: var(--danger); cursor: pointer; opacity: 0.4; transition: 0.3s;" onmouseover="this.style.opacity='1'">
+                        <i class="fas fa-minus-circle"></i>
+                    </button>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
     </div>
     {% endfor %}
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
 <script>
 async function deleteSubject(className, subject) {
-    if (!confirm(`Are you sure you want to delete "${subject}" from ${className}?`)) return;
+    if (!confirm(`Confirm removal of "${subject}" from ${className}?`)) return;
     
     try {
         const res = await fetch('/api/delete_subject', {
@@ -65,14 +71,9 @@ async function deleteSubject(className, subject) {
             body: JSON.stringify({ class_name: className, subject: subject })
         });
         const data = await res.json();
-        if (data.success) {
-            window.location.reload();
-        } else {
-            alert('Error deleting subject.');
-        }
-    } catch (err) {
-        alert('Connection error.');
-    }
+        if (data.success) window.location.reload();
+        else alert('Error deleting subject.');
+    } catch (err) { alert('Network failure.'); }
 }
 </script>
 {% endblock %}

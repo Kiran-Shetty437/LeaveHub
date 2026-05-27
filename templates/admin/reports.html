@@ -1,120 +1,213 @@
 {% extends "base.html" %}
 
-{% block title %}Department & Class Reports - LeaveSystem{% endblock %}
-{% block page_title %}Department & Class Wise Records{% endblock %}
+{% block title %}Analytical Archives | LeaveHub{% endblock %}
+{% block page_title %}Departmental Archives{% endblock %}
 
 {% block content %}
-<div style="background: var(--white); padding: 1rem; border-radius: 0.5rem; margin-bottom: 2rem; border-left: 4px solid var(--primary);">
-    <p style="font-size: 0.875rem; color: var(--text-muted);">
-        <i class="fas fa-file-invoice"></i> Comprehensive history of all leave applications grouped by Department and Class.
-    </p>
+<div class="glass-card animate-fade-in" style="padding: 1.5rem; margin-bottom: 3rem; border-left: 4px solid var(--primary); background: rgba(99, 102, 241, 0.03);">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <div style="width: 40px; height: 40px; background: rgba(99, 102, 241, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary);">
+            <i class="fas fa-file-invoice"></i>
+        </div>
+        <div>
+            <p style="font-size: 0.9rem; font-weight: 700; color: white;">Global Archival Logs</p>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Aggregated historical leave records organized by department and student batches.</p>
+        </div>
+    </div>
 </div>
 
-<!-- Teachers Section -->
-<div class="card-section" style="margin-bottom: 3rem;">
-    <h2 style="margin-bottom: 1.5rem; font-size: 1.5rem; color: var(--primary);">
-        <i class="fas fa-chalkboard-teacher"></i> Department-wise Records (Teachers)
-    </h2>
+<!-- Date Selector Form -->
+<form method="GET" action="{{ url_for('leave_reports') }}" id="date-form" class="glass-card animate-fade-in" style="padding: 1.5rem; margin-bottom: 2rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; justify-content: space-between; border-left: 4px solid var(--accent);">
+    <div style="flex: 1; min-width: 200px; display: flex; align-items: center; gap: 1rem;">
+        <label style="color: white; font-weight: 700; white-space: nowrap;"><i class="fas fa-calendar-day" style="color: var(--primary);"></i> Report Date:</label>
+        <input type="date" name="date" value="{{ filter_date }}" class="form-control" onchange="document.getElementById('date-form').submit();" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 0.75rem; border-radius: 8px; width: 100%; max-width: 300px; cursor: pointer;">
+        <a href="{{ url_for('leave_reports') }}" class="btn" style="padding: 0.75rem 1rem; border-radius: 8px; background: rgba(255,255,255,0.1); color: white; text-decoration: none; display: inline-block;">Clear Date</a>
+    </div>
+</form>
+
+<!-- Faculty Section -->
+<section style="margin-bottom: 4rem;" id="teacher-section">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: white; display: flex; align-items: center; gap: 12px;">
+            <i class="fas fa-chalkboard-teacher" style="color: var(--primary);"></i> Faculty Departmental Logs
+        </h3>
+        
+        <div style="position: relative;">
+            <button type="button" class="btn" onclick="document.getElementById('teacher-filter-menu').style.display = document.getElementById('teacher-filter-menu').style.display === 'none' ? 'block' : 'none';" style="padding: 0.5rem 1rem; border-radius: 6px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                <i class="fas fa-filter"></i> Filter Status
+            </button>
+            <div id="teacher-filter-menu" class="glass-card" style="display: none; position: absolute; right: 0; top: 120%; z-index: 100; min-width: 200px; padding: 1.5rem; border: 1px solid rgba(255,255,255,0.1);">
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <label style="color: white; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
+                        <input type="checkbox" value="Approved" onchange="filterSection('teacher-section', 'teacher-filter-menu')"> Approved
+                    </label>
+                    <label style="color: white; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
+                        <input type="checkbox" value="Pending" onchange="filterSection('teacher-section', 'teacher-filter-menu')"> Pending / Forwarded
+                    </label>
+                    <label style="color: white; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
+                        <input type="checkbox" value="Rejected" onchange="filterSection('teacher-section', 'teacher-filter-menu')"> Rejected
+                    </label>
+                    <label style="color: white; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
+                        <input type="checkbox" value="Expired" onchange="filterSection('teacher-section', 'teacher-filter-menu')"> Timeout / Expired
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
     
     {% for dept, leaves in report_teachers.items() %}
-    <div class="report-group" style="margin-bottom: 2rem;">
-        <h3 style="background: #f1f5f9; padding: 0.75rem 1rem; border-radius: 0.5rem; font-size: 1.1rem; color: var(--text-dark); border-left: 4px solid var(--primary); margin-bottom: 1rem;">
-            {{ dept }}
-        </h3>
-        <div class="table-container" style="background: white; border-radius: 0.5rem; border: 1px solid var(--border);">
-            <table style="width: 100%; border-collapse: collapse;">
-                <thead>
-                    <tr style="border-bottom: 1px solid var(--border); background: #fafafa;">
-                        <th style="padding: 1rem; text-align: left; font-weight: 600;">Teacher</th>
-                        <th style="padding: 1rem; text-align: left; font-weight: 600;">Dates</th>
-                        <th style="padding: 1rem; text-align: left; font-weight: 600;">Status</th>
-                        <th style="padding: 1rem; text-align: left; font-weight: 600;">Reason</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for leave in leaves %}
-                    <tr style="border-bottom: 1px solid #f1f5f9;">
-                        <td style="padding: 1rem;">{{ leave.user.name }}</td>
-                        <td style="padding: 1rem;">{{ leave.dates }}</td>
-                        <td style="padding: 1rem;">
-                            <span class="badge badge-{{ leave.status.lower().replace(' ', '-') }}">
-                                {{ leave.status }}
-                            </span>
-                        </td>
-                        <td style="padding: 1rem; color: var(--text-muted); font-size: 0.875rem;">{{ leave.reason }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <div class="glass-card table-box animate-fade-in" style="margin-bottom: 2.5rem; padding: 0;">
+        <div style="padding: 1.25rem 1.5rem; background: rgba(99, 102, 241, 0.05); border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 800; color: white; letter-spacing: 1px;">DEPT: {{ dept }}</span>
+            <span class="status-badge" style="background: rgba(255,255,255,0.05); font-size: 0.65rem;">{{ leaves|length }} RECORDS</span>
         </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Faculty Member</th>
+                    <th>Leave Schedule</th>
+                    <th>Status</th>
+                    <th>Reasoning</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for leave in leaves %}
+                <tr>
+                    <td><div style="font-weight: 700; color: white;">{{ leave.user.name }}</div></td>
+                    <td><div style="font-weight: 700; color: var(--primary);">{{ leave.dates }}</div></td>
+                    <td><span class="status-badge {{ get_effective_status(leave).lower().replace(' ', '-').replace('(', '').replace(')', '') }}">{{ get_effective_status(leave) }}</span></td>
+                    <td style="font-size: 0.8rem; color: var(--text-muted); font-style: italic;">"{{ leave.reason }}"</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
     {% else %}
-    <p style="text-align: center; color: var(--text-muted); padding: 2rem;">No teacher leave records found.</p>
+    <div class="glass-card" style="text-align: center; padding: 4rem;">
+        <p style="color: var(--text-muted);">No faculty archives found.</p>
+    </div>
     {% endfor %}
-</div>
+</section>
 
-<!-- Students Section -->
-<div class="card-section">
-    <h2 style="margin-bottom: 1.5rem; font-size: 1.5rem; color: var(--secondary);">
-        <i class="fas fa-user-graduate"></i> Class-wise Records (Students)
-    </h2>
+<!-- Student Section -->
+<section id="student-section">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: white; display: flex; align-items: center; gap: 12px;">
+            <i class="fas fa-user-graduate" style="color: var(--accent);"></i> Batch/Class Records
+        </h3>
+        
+        <div style="position: relative;">
+            <button type="button" class="btn" onclick="document.getElementById('student-filter-menu').style.display = document.getElementById('student-filter-menu').style.display === 'none' ? 'block' : 'none';" style="padding: 0.5rem 1rem; border-radius: 6px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                <i class="fas fa-filter"></i> Filter Status
+            </button>
+            <div id="student-filter-menu" class="glass-card" style="display: none; position: absolute; right: 0; top: 120%; z-index: 100; min-width: 200px; padding: 1.5rem; border: 1px solid rgba(255,255,255,0.1);">
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <label style="color: white; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
+                        <input type="checkbox" value="Approved" onchange="filterSection('student-section', 'student-filter-menu')"> Approved
+                    </label>
+                    <label style="color: white; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
+                        <input type="checkbox" value="Pending" onchange="filterSection('student-section', 'student-filter-menu')"> Pending / Forwarded
+                    </label>
+                    <label style="color: white; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
+                        <input type="checkbox" value="Rejected" onchange="filterSection('student-section', 'student-filter-menu')"> Rejected
+                    </label>
+                    <label style="color: white; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
+                        <input type="checkbox" value="Expired" onchange="filterSection('student-section', 'student-filter-menu')"> Timeout / Expired
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
     
     {% for cls, leaves in report_students.items() %}
-    <div class="report-group" style="margin-bottom: 2rem;">
-        <h3 style="background: #fdf2f8; padding: 0.75rem 1rem; border-radius: 0.5rem; font-size: 1.1rem; color: var(--text-dark); border-left: 4px solid var(--secondary); margin-bottom: 1rem;">
-            {{ cls }}
-        </h3>
-        <div class="table-container" style="background: white; border-radius: 0.5rem; border: 1px solid var(--border);">
-            <table style="width: 100%; border-collapse: collapse;">
-                <thead>
-                    <tr style="border-bottom: 1px solid var(--border); background: #fafafa;">
-                        <th style="padding: 1rem; text-align: left; font-weight: 600;">Student</th>
-                        <th style="padding: 1rem; text-align: left; font-weight: 600;">Roll No</th>
-                        <th style="padding: 1rem; text-align: left; font-weight: 600;">Dates</th>
-                        <th style="padding: 1rem; text-align: left; font-weight: 600;">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for leave in leaves %}
-                    <tr style="border-bottom: 1px solid #f1f5f9;">
-                        <td style="padding: 1rem;">{{ leave.user.name }}</td>
-                        <td style="padding: 1rem;">{{ leave.user.roll_no }}</td>
-                        <td style="padding: 1rem;">{{ leave.dates }}</td>
-                        <td style="padding: 1rem;">
-                            <span class="badge badge-{{ leave.status.lower().replace(' ', '-') }}">
-                                {{ leave.status }}
-                            </span>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <div class="glass-card table-box animate-fade-in" style="margin-bottom: 2.5rem; padding: 0;">
+        <div style="padding: 1.25rem 1.5rem; background: rgba(139, 92, 246, 0.05); border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 800; color: white; letter-spacing: 1px;">BATCH: {{ cls }}</span>
+            <span class="status-badge" style="background: rgba(255,255,255,0.05); font-size: 0.65rem;">{{ leaves|length }} FILINGS</span>
         </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Student Name</th>
+                    <th>Roll Number</th>
+                    <th>Leave Date</th>
+                    <th>Final Status</th>
+                    <th>Reasoning</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for leave in leaves %}
+                <tr>
+                    <td><div style="font-weight: 700; color: white;">{{ leave.user.name }}</div></td>
+                    <td><div style="font-weight: 700; color: var(--accent); font-family: monospace;">{{ leave.user.roll_no }}</div></td>
+                    <td><div style="font-weight: 700; color: var(--text-main);">{{ leave.dates }}</div></td>
+                    <td><span class="status-badge {{ get_effective_status(leave).lower().replace(' ', '-').replace('(', '').replace(')', '') }}">{{ get_effective_status(leave) }}</span></td>
+                    <td style="font-size: 0.8rem; color: var(--text-muted); font-style: italic;">"{{ leave.reason }}"</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
     {% else %}
-    <p style="text-align: center; color: var(--text-muted); padding: 2rem;">No student leave records found.</p>
+    <div class="glass-card" style="text-align: center; padding: 4rem;">
+        <p style="color: var(--text-muted);">No student archives found.</p>
+    </div>
     {% endfor %}
-</div>
+</section>
 
-{% endblock %}
+<script>
+    function filterSection(sectionId, menuId) {
+        const section = document.getElementById(sectionId);
+        const menu = document.getElementById(menuId);
+        const checkboxes = menu.querySelectorAll('input[type="checkbox"]');
+        
+        let checkedStatuses = [];
+        checkboxes.forEach(cb => {
+            if (cb.checked) {
+                checkedStatuses.push(cb.value.toLowerCase());
+            }
+        });
+        
+        // If no checkboxes are checked, show all
+        const showAll = checkedStatuses.length === 0;
+        
+        const rows = section.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            const statusBadge = row.querySelector('.status-badge');
+            if (statusBadge) {
+                const statusText = statusBadge.textContent.trim().toLowerCase();
+                let isMatch = false;
+                
+                if (showAll) {
+                    isMatch = true;
+                } else {
+                    for (let s of checkedStatuses) {
+                        if (statusText.includes(s)) {
+                            isMatch = true;
+                            break;
+                        }
+                    }
+                }
+                
+                row.style.display = isMatch ? '' : 'none';
+            }
+        });
+    }
 
-{% block extra_css %}
-<style>
-    .badge-forwarded-to-admin {
-        background: #fef3c7;
-        color: #92400e;
-    }
-    .badge-pending {
-        background: #eff6ff;
-        color: #1e40af;
-    }
-    .badge-approved {
-        background: #ecfdf5;
-        color: #065f46;
-    }
-    .badge-rejected {
-        background: #fef2f2;
-        color: #991b1b;
-    }
-</style>
+    // Close dropdowns if clicked outside
+    document.addEventListener('click', function(event) {
+        const teacherMenu = document.getElementById('teacher-filter-menu');
+        const studentMenu = document.getElementById('student-filter-menu');
+        const teacherBtn = document.querySelector('#teacher-section .btn');
+        const studentBtn = document.querySelector('#student-section .btn');
+        
+        if (teacherMenu && teacherBtn && !teacherMenu.contains(event.target) && !teacherBtn.contains(event.target)) {
+            teacherMenu.style.display = 'none';
+        }
+        if (studentMenu && studentBtn && !studentMenu.contains(event.target) && !studentBtn.contains(event.target)) {
+            studentMenu.style.display = 'none';
+        }
+    });
+</script>
+
 {% endblock %}

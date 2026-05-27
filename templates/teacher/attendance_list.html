@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Attendance | LeaveHub{% endblock %}
+{% block page_title %}Faculty Attendance Portal{% endblock %}
+
+{% block content %}
+<div class="glass-card animate-fade-in" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05)); padding: 2rem; margin-bottom: 2.5rem; border-left: 4px solid var(--primary);">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <div style="width: 44px; height: 44px; background: rgba(99, 102, 241, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--primary);">
+            <i class="fas fa-list-check"></i>
+        </div>
+        <div>
+            <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Assigned Curriculum Units</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Select a class batch to update student engagement records.</p>
+        </div>
+    </div>
+</div>
+
+<div class="card-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
+    {% for class_name, subject in classes %}
+    <div class="glass-card animate-fade-in" style="border: 1px solid rgba(255,255,255,0.05); transition: 0.3s;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
+            <div>
+                <span class="status-badge" style="background: rgba(139, 92, 246, 0.1); color: var(--accent); font-size: 0.65rem; font-weight: 800; text-transform: uppercase;">{{ class_name }}</span>
+                <h4 style="color: white; font-size: 1.2rem; font-weight: 800; margin-top: 10px;">{{ subject }}</h4>
+            </div>
+            <i class="fas fa-arrow-up-right-from-square" style="color: rgba(255,255,255,0.2);"></i>
+        </div>
+        
+        <div style="display: flex; gap: 10px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem; margin-top: 1rem;">
+            <a href="{{ url_for('mark_attendance_form', class_name=class_name, subject=subject) }}" class="glow-button" style="width: 100%; justify-content: center; text-decoration: none;">
+                Mark Attendance
+            </a>
+        </div>
+    </div>
+    {% else %}
+    <div class="glass-card" style="grid-column: 1/-1; text-align: center; padding: 5rem; color: var(--text-muted);">
+        <i class="fas fa-calendar-xmark" style="display: block; font-size: 3rem; margin-bottom: 2rem; opacity: 0.1;"></i>
+        You are not assigned to any classes in the current timetable.
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+.glass-card:hover { 
+    border-color: var(--primary) !important;
+    transform: translateY(-5px);
+    box-shadow: 0 10px 40px rgba(99,102,241,0.1);
+}
+</style>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Faculty Leave Inventory | LeaveHub{% endblock %}
+{% block page_title %}Leave Quota Management{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 350px 1fr; gap: 2rem;">
+    <!-- Update Panel -->
+    <div class="glass-card animate-fade-in" style="height: fit-content; padding: 2rem;">
+        <h3 style="color: white; font-weight: 800; font-size: 1.1rem; margin-bottom: 2rem;">Assign Leave Units</h3>
+        
+        <form action="{{ url_for('manage_faculty_leaves') }}" method="POST">
+            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                <div class="form-group">
+                    <label style="color: var(--text-muted); font-size: 0.75rem; font-weight: 800; text-transform: uppercase;">Universal Category Quota</label>
+                    <select name="leave_type" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 12px; border-radius: 10px; width: 100%;" required>
+                        <option value="" disabled selected>-- Select Leave Type --</option>
+                        {% for lt in leave_types %}
+                        <option value="{{ lt }}">{{ lt }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label style="color: var(--text-muted); font-size: 0.75rem; font-weight: 800; text-transform: uppercase;">Units for All Faculty</label>
+                    <input type="number" name="count" min="0" step="1" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 12px; border-radius: 10px; width: 100%;" placeholder="e.g. 15" required>
+                </div>
+
+                <button type="submit" class="glow-button" style="width: 100%; justify-content: center; margin-top: 1rem;">
+                    Sync All Faculty
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Inventory Table -->
+    <div class="glass-card table-box animate-fade-in">
+        <div style="padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="color: white; font-weight: 800; font-size: 1.1rem;">Current Faculty Inventory</h3>
+            <i class="fas fa-users-gear" style="color: var(--text-muted);"></i>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Teacher</th>
+                    {% for lt in leave_types %}
+                    <th style="min-width: 60px; text-align: center;">{{ lt[:2]|upper }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in teachers %}
+                <tr>
+                    <td>
+                        <div style="font-weight: 700; color: white;">{{ t.name }}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted);">{{ t.department }}</div>
+                    </td>
+                    {% for lt in leave_types %}
+                    <td style="text-align: center;">
+                        {% set bal_val = 0 %}
+                        {% for bal in t.balances %}
+                            {% if bal.leave_type == lt %}
+                                {% set bal_val = bal.balance %}
+                            {% endif %}
+                        {% endfor %}
+                        <span class="status-badge" style="background: rgba(255,255,255,0.05); color: {{ 'var(--success)' if bal_val > 5 else 'var(--danger)' }}; font-weight: 800; font-size: 0.85rem;">
+                            {{ bal_val }}
+                        </span>
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

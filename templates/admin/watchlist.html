@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance Watchlist | LeaveHub{% endblock %}
+{% block page_title %}Attendance Watchlist{% endblock %}
+
+{% block content %}
+<form method="GET" action="{{ url_for('admin_watchlist') }}" class="glass-card animate-fade-in" style="padding: 1.5rem; margin-bottom: 2rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; border-left: 4px solid var(--danger);">
+    <div style="flex: 1; min-width: 200px;">
+        <label style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.5rem; display: block;">Select Month</label>
+        <select name="month" class="form-control" onchange="this.form.submit()" style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 0.75rem; border-radius: 8px; width: 100%;">
+            {% for month in months %}
+            <option value="{{ month }}" {% if filter_month == month %}selected{% endif %} style="color: black;">{{ month }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</form>
+
+<!-- Missing Attendance Section -->
+<div class="glass-card animate-fade-in" style="margin-bottom: 3rem; border-top: 4px solid var(--warning);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div>
+            <h3 style="font-size: 1.25rem; font-weight: 800; color: white; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-clock-rotate-left" style="color: var(--warning);"></i>
+                Pending Faculty Actions ({{ filter_month }})
+            </h3>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem;">Faculty who have not submitted attendance for their assigned classes.</p>
+        </div>
+        <span class="status-badge pending" style="font-size: 0.7rem;">Incomplete</span>
+    </div>
+
+    {% if missing_attendance %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: separate; border-spacing: 0 0.75rem;">
+            <thead>
+                <tr style="text-align: left;">
+                    <th style="padding: 1rem; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Faculty Member</th>
+                    <th style="padding: 1rem; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Contact</th>
+                    <th style="padding: 1rem; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Missing Records (Class & Subject)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in missing_attendance %}
+                <tr style="background: rgba(255, 255, 255, 0.02); transition: 0.3s; cursor: default;" onmouseover="this.style.background='rgba(255, 255, 255, 0.05)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.02)'">
+                    <td style="padding: 1.25rem; border-radius: 12px 0 0 12px;">
+                        <div style="font-weight: 700; color: white;">{{ record.teacher_name }}</div>
+                    </td>
+                    <td style="padding: 1.25rem;">
+                        <div style="color: var(--text-muted); font-size: 0.85rem;">
+                            <i class="fas fa-envelope" style="margin-right: 5px;"></i> {{ record.email }}<br>
+                            <i class="fas fa-phone" style="margin-right: 5px;"></i> {{ record.phone }}
+                        </div>
+                    </td>
+                    <td style="padding: 1.25rem; border-radius: 0 12px 12px 0;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            {% for m in record.missed %}
+                            <div style="padding: 0.25rem 0.5rem; background: rgba(250, 204, 21, 0.1); color: var(--warning); border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
+                                {{ m.class }} - {{ m.subject }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="padding: 4rem 2rem; text-align: center; background: rgba(255,255,255,0.01); border-radius: 16px; border: 1px dashed rgba(255,255,255,0.1);">
+        <i class="fas fa-check-circle" style="font-size: 3rem; color: var(--success); opacity: 0.2; margin-bottom: 1.5rem; display: block;"></i>
+        <h4 style="color: white; font-weight: 700; margin-bottom: 0.5rem;">All Clear</h4>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">All faculty members have submitted their attendance records for {{ filter_month }}.</p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="glass-card animate-fade-in" style="margin-bottom: 3rem; border-top: 4px solid var(--danger);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div>
+            <h3 style="font-size: 1.25rem; font-weight: 800; color: white; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-triangle-exclamation" style="color: var(--danger);"></i>
+                Watchlist for {{ filter_month }}
+            </h3>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem;">Students with overall attendance below 70% in this month.</p>
+        </div>
+        <span class="status-badge rejected" style="font-size: 0.7rem;">Action Required</span>
+    </div>
+
+    {% if low_attendance %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: separate; border-spacing: 0 0.75rem;">
+            <thead>
+                <tr style="text-align: left;">
+                    <th style="padding: 1rem; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Student Name</th>
+                    <th style="padding: 1rem; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Class</th>
+                    <th style="padding: 1rem; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Mentor(s)</th>
+                    <th style="padding: 1rem; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in low_attendance %}
+                <tr style="background: rgba(255, 255, 255, 0.02); transition: 0.3s; cursor: default;" onmouseover="this.style.background='rgba(255, 255, 255, 0.05)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.02)'">
+                    <td style="padding: 1.25rem; border-radius: 12px 0 0 12px;">
+                        <div style="font-weight: 700; color: white;">{{ student.name }}</div>
+                    </td>
+                    <td style="padding: 1.25rem;">
+                        <div style="display: inline-block; padding: 0.25rem 0.75rem; background: rgba(139, 92, 246, 0.1); color: var(--accent); border-radius: 6px; font-size: 0.8rem; font-weight: 700;">
+                            {{ student.class }}
+                        </div>
+                    </td>
+                    <td style="padding: 1.25rem;">
+                        <div style="color: var(--text-muted); font-size: 0.9rem;">{{ student.mentor }}</div>
+                    </td>
+                    <td style="padding: 1.25rem; border-radius: 0 12px 12px 0;">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <div style="flex-grow: 1; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; min-width: 100px;">
+                                <div style="width: {{ student.percentage }}%; height: 100%; background: linear-gradient(90deg, var(--danger), #ef4444);"></div>
+                            </div>
+                            <span style="font-weight: 800; color: var(--danger); font-family: monospace; font-size: 1rem;">{{ student.percentage }}%</span>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="padding: 4rem 2rem; text-align: center; background: rgba(255,255,255,0.01); border-radius: 16px; border: 1px dashed rgba(255,255,255,0.1);">
+        <i class="fas fa-check-circle" style="font-size: 3rem; color: var(--success); opacity: 0.2; margin-bottom: 1.5rem; display: block;"></i>
+        <h4 style="color: white; font-weight: 700; margin-bottom: 0.5rem;">All Clear</h4>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">No students currently have attendance below 70% in this month.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
