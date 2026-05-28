@@ -105,6 +105,12 @@
                     <i class="fas fa-user-tie" style="color: gold;"></i>
                     <span>HOD Panel</span>
                 </a>
+                <a href="{{ url_for('hod_teacher_leaves') }}"
+                    class="nav-item {% if '/hod/teacher_leaves' in request.path %}active{% endif %}"
+                    style="border-left: 2px solid gold;">
+                    <i class="fas fa-user-clock" style="color: gold;"></i>
+                    <span>Faculty Leaves</span>
+                </a>
                 {% endif %}
 
                 {% endif %}

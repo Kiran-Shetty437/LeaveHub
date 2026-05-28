@@ -278,6 +278,37 @@ with app.app_context():
         admin = User(name='Administrator', role='Admin', username='admin', password='admin123')
         db.session.add(admin)
         db.session.commit()
+
+    # Initialize default leave balances for all teachers
+    teachers = User.query.filter_by(role='Teacher').all()
+    default_counts = {
+        'Casual Leave': 15,
+        'Medical Leave': 10,
+        'Earned Leave': 5,
+        'Special Leave': 5
+    }
+    for t in teachers:
+        existing_bals = LeaveBalance.query.filter_by(user_id=t.id).all()
+        if not existing_bals:
+            # No records at all — create defaults
+            for lt, count in default_counts.items():
+                new_bal = LeaveBalance(user_id=t.id, leave_type=lt, balance=count)
+                db.session.add(new_bal)
+        else:
+            # If ALL balances are 0, reset to defaults
+            if all(b.balance == 0 for b in existing_bals):
+                for lt, count in default_counts.items():
+                    bal = LeaveBalance.query.filter_by(user_id=t.id, leave_type=lt).first()
+                    if bal:
+                        bal.balance = count
+                    else:
+                        db.session.add(LeaveBalance(user_id=t.id, leave_type=lt, balance=count))
+            # Also ensure all 4 leave types exist
+            existing_types = {b.leave_type for b in existing_bals}
+            for lt, count in default_counts.items():
+                if lt not in existing_types:
+                    db.session.add(LeaveBalance(user_id=t.id, leave_type=lt, balance=count))
+    db.session.commit()
     
     def inject_helpers():
         return dict(get_effective_status=get_effective_status)
@@ -976,6 +1007,7 @@ def apply_leave():
             role=session['role'], 
             reason=reason, 
             dates=dates, 
+            leave_type=request.form.get('leave_type'),
             start_time=start_time_val if start_time_val else "Full Day",
             document_path=filename
         )
@@ -1291,13 +1323,30 @@ def teacher_timetable():
                 mentor_class = mentor_info['class_name']
                 break
     
+    # Get teacher's HOD-assigned subjects for smart input
+    assigned_subs = TeacherSubject.query.filter_by(teacher_id=teacher_id).all()
+    assigned_subjects_list = [s.subject for s in assigned_subs]
+    
+    # Build a lookup: {subject_lower: class_name} and {class_name: subject} for assigned subjects only
+    assigned_subject_class_map = {}  # subject -> class
+    assigned_class_subject_map = {}  # class -> subject
+    for sub_name in assigned_subjects_list:
+        for c_name, subs in mapping.items():
+            if any(sub_name.strip().lower() == s.strip().lower() for s in subs):
+                assigned_subject_class_map[sub_name] = c_name
+                assigned_class_subject_map[c_name] = sub_name
+                break
+    
     return render_template('teacher/timetable.html', 
                            timetable_data=timetable_data, 
                            days=days, 
                            periods=periods,
                            all_subjects=all_subjects,
                            class_mapping=mapping,
-                           mentor_class=mentor_class)
+                           mentor_class=mentor_class,
+                           assigned_subjects=assigned_subjects_list,
+                           assigned_subject_class_map=assigned_subject_class_map,
+                           assigned_class_subject_map=assigned_class_subject_map)
 
 @app.route('/admin/subjects', methods=['GET', 'POST'])
 def manage_subjects():
@@ -1692,6 +1741,23 @@ def hod_assign_teacher_subject():
         existing_global = TeacherSubject.query.filter(db.func.lower(TeacherSubject.subject) == subject.strip().lower()).first()
         if existing_global and existing_global.teacher_id != teacher_id:
             return jsonify({'success': False, 'message': f"'{subject}' is already assigned to {existing_global.teacher.name}. One subject per teacher."}), 400
+        
+        # One-subject-per-class restriction: find which class this subject belongs to
+        mapping = get_class_subject_mapping()
+        subject_class = None
+        for c_name, subs in mapping.items():
+            if any(subject.strip().lower() == s.strip().lower() for s in subs):
+                subject_class = c_name
+                break
+        
+        if subject_class:
+            # Check if this teacher already has another subject assigned from the same class
+            existing_teacher_subs = TeacherSubject.query.filter_by(teacher_id=teacher_id).all()
+            for ts in existing_teacher_subs:
+                for c_name, subs in mapping.items():
+                    if c_name == subject_class and any(ts.subject.strip().lower() == s.strip().lower() for s in subs):
+                        if ts.subject.strip().lower() != subject.strip().lower():
+                            return jsonify({'success': False, 'message': f"This teacher already has '{ts.subject}' assigned from class {subject_class}. Only one subject per class is allowed."}), 400
             
         if not existing:
             new_sub = TeacherSubject(teacher_id=teacher_id, subject=subject)
@@ -1699,6 +1765,10 @@ def hod_assign_teacher_subject():
     elif action == 'remove':
         if existing:
             db.session.delete(existing)
+            # Cascade: also remove all timetable entries for this teacher+subject
+            timetable_entries = TeacherTimetable.query.filter_by(teacher_id=teacher_id, subject=subject).all()
+            for entry in timetable_entries:
+                db.session.delete(entry)
             
     db.session.commit()
     return jsonify({'success': True})
@@ -1800,6 +1870,69 @@ def hod_save_timetable():
     
     db.session.commit()
     return jsonify({'success': True, 'class_name': class_name})
+
+# HOD: Teacher Leaves for Today & Tomorrow
+@app.route('/hod/teacher_leaves')
+def hod_teacher_leaves():
+    if session.get('role') != 'Teacher': return redirect(url_for('login'))
+    user = User.query.get(session['user_id'])
+    if not user or not user.is_hod:
+        flash('Access denied. HOD only.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    from datetime import date
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+
+    # Fetch all approved teacher leave requests
+    all_teacher_leaves = LeaveRequest.query.filter(
+        LeaveRequest.role == 'Teacher',
+        LeaveRequest.status == 'Approved'
+    ).order_by(LeaveRequest.dates).all()
+
+    def overlaps_window(dates_str, start_window, end_window):
+        """Return True if the leave date range overlaps [start_window, end_window]."""
+        try:
+            if ' to ' in dates_str.lower():
+                parts = dates_str.lower().split('to')
+                leave_start = datetime.strptime(parts[0].strip(), '%d-%m-%Y').date()
+                leave_end   = datetime.strptime(parts[1].strip(), '%d-%m-%Y').date()
+            else:
+                leave_start = leave_end = datetime.strptime(dates_str.strip(), '%d-%m-%Y').date()
+            return leave_start <= end_window and leave_end >= start_window
+        except Exception:
+            return False
+
+    tomorrow_leaves = []
+    today_leaves     = []
+
+    for leave in all_teacher_leaves:
+        if overlaps_window(leave.dates, tomorrow, tomorrow):
+            tomorrow_leaves.append(leave)
+        if overlaps_window(leave.dates, today, today):
+            today_leaves.append(leave)
+
+    # Attach timetable details for each day
+    today_weekday = today.strftime('%A')
+    tomorrow_weekday = tomorrow.strftime('%A')
+
+    for leave in today_leaves:
+        leave.scheduled_classes = TeacherTimetable.query.filter_by(
+            teacher_id=leave.user_id,
+            day=today_weekday
+        ).order_by(TeacherTimetable.period).all()
+
+    for leave in tomorrow_leaves:
+        leave.scheduled_classes = TeacherTimetable.query.filter_by(
+            teacher_id=leave.user_id,
+            day=tomorrow_weekday
+        ).order_by(TeacherTimetable.period).all()
+
+    return render_template('teacher/hod_teacher_leaves.html',
+                           tomorrow_leaves=tomorrow_leaves,
+                           today_leaves=today_leaves,
+                           today=today,
+                           tomorrow=tomorrow)
 
 # AI Integration with Ollama
 @app.route('/ai/ask', methods=['POST'])

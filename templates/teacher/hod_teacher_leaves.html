@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}Teacher Leave Report | HOD Panel{% endblock %}
+{% block page_title %}HOD — Faculty Leave Report{% endblock %}
+
+{% block content %}
+<!-- Header Banner -->
+<div class="glass-card animate-fade-in" style="background: linear-gradient(135deg, rgba(234, 179, 8, 0.12), rgba(139, 92, 246, 0.06)); padding: 2.5rem; margin-bottom: 2.5rem; border-left: 4px solid gold; position: relative; overflow: hidden;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 0.4rem; color: white; letter-spacing: -0.5px;">
+                <i class="fas fa-user-clock" style="color: gold; margin-right: 10px;"></i>Faculty Leave Overview
+            </h2>
+            <p style="color: var(--text-muted); font-size: 0.95rem;">Teachers on approved leave — <span style="color: var(--primary); font-weight: 600;">today</span> and <span style="color: var(--primary); font-weight: 600;">tomorrow</span>.</p>
+        </div>
+        <div style="display: flex; gap: 1.2rem; align-items: center;">
+            <div class="glass-card" style="padding: 0.8rem 1.2rem; text-align: center; min-width: 100px; border: 1px solid rgba(250,204,21,0.15);">
+                <div style="font-size: 1.6rem; font-weight: 800; color: gold;">{{ today_leaves|length }}</div>
+                <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">Today</div>
+            </div>
+            <div class="glass-card" style="padding: 0.8rem 1.2rem; text-align: center; min-width: 100px; border: 1px solid rgba(239,68,68,0.2);">
+                <div style="font-size: 1.6rem; font-weight: 800; color: var(--rejected);">{{ tomorrow_leaves|length }}</div>
+                <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">Tomorrow</div>
+            </div>
+        </div>
+    </div>
+    <i class="fas fa-calendar-xmark" style="font-size: 7rem; opacity: 0.03; position: absolute; right: 25px; bottom: -15px;"></i>
+</div>
+
+<!-- Tomorrow's Leaves Section -->
+<div class="glass-card table-box animate-fade-in" style="margin-bottom: 2.5rem; border-left: 4px solid rgba(250,204,21,0.5);">
+    <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <div>
+            <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">
+                Tomorrow — {{ tomorrow.strftime('%d %B %Y, %A') }}<i class="fas fa-arrow-right" style="color: gold; margin-left: 8px; font-size: 0.85rem;"></i>
+            </h3>
+            <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px;">Faculty scheduled to be on approved leave tomorrow.</p>
+        </div>
+        <div class="status-badge" style="font-size: 0.65rem; background: rgba(250,204,21,0.12); color: gold; border: 1px solid rgba(250,204,21,0.2);">
+            {{ tomorrow_leaves|length }} Teacher{{ 's' if tomorrow_leaves|length != 1 else '' }}
+        </div>
+    </div>
+
+    {% if tomorrow_leaves %}
+    <div style="padding: 1rem; display: flex; flex-wrap: wrap; gap: 1rem;">
+        {% for leave in tomorrow_leaves %}
+        <div class="glass-card" style="flex: 1; min-width: 280px; max-width: 400px; padding: 1.2rem; background: rgba(250,204,21,0.03); border: 1px solid rgba(250,204,21,0.1); transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.3)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.8rem;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 42px; height: 42px; background: linear-gradient(135deg, rgba(250,204,21,0.2), rgba(234,179,8,0.1)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: gold; font-size: 1.1rem;">
+                        {{ leave.user.name[0] | upper }}
+                    </div>
+                    <div>
+                        <h4 style="color: white; font-weight: 700; font-size: 0.95rem;">{{ leave.user.name }}</h4>
+                        <span style="color: var(--text-muted); font-size: 0.7rem;">{{ leave.user.department or 'N/A' }}</span>
+                    </div>
+                </div>
+                <div class="status-badge approved" style="font-size: 0.6rem;">Approved</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px; background: rgba(234, 179, 8, 0.08); padding: 10px; border-radius: 8px; border: 1px solid rgba(234, 179, 8, 0.2);">
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem;">
+                    <i class="fas fa-calendar-days" style="color: #b45309; width: 16px; text-align: center;"></i>
+                    <span style="color: #1e293b; font-weight: 700;">{{ leave.dates }}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem;">
+                    <i class="fas fa-quote-left" style="color: #6b7280; width: 16px; text-align: center; opacity: 0.7;"></i>
+                    <span style="color: #374151; font-style: italic;">{{ leave.reason[:80] }}{{ '...' if leave.reason|length > 80 else '' }}</span>
+                </div>
+                {% if leave.user.email %}
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem;">
+                    <i class="fas fa-envelope" style="color: var(--primary); width: 16px; text-align: center;"></i>
+                    <span style="color: #4b5563; font-weight: 500;">{{ leave.user.email }}</span>
+                </div>
+                {% endif %}
+                {% if leave.user.phone %}
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem;">
+                    <i class="fas fa-phone" style="color: var(--success); width: 16px; text-align: center;"></i>
+                    <span style="color: #4b5563; font-weight: 500;">{{ leave.user.phone }}</span>
+                </div>
+                {% endif %}
+                
+                <!-- Tomorrow's Timetable / Classes -->
+                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(234, 179, 8, 0.25);">
+                    <div style="font-size: 0.7rem; color: #b45309; font-weight: 800; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 0.5px;">
+                        <i class="fas fa-list-check" style="margin-right: 4px;"></i>Classes Tomorrow:
+                    </div>
+                    {% if leave.scheduled_classes %}
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            {% for item in leave.scheduled_classes %}
+                            <div style="font-size: 0.75rem; color: #374151; display: flex; justify-content: space-between; align-items: center;">
+                                <span>P{{ item.period }}: <span style="font-weight: 700; color: #0f172a;">{{ item.subject }}</span></span>
+                                <span class="status-badge" style="background: #fef3c7; color: #b45309; border: 1px solid rgba(180, 83, 9, 0.3); font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; font-weight: 800;">{{ item.class_name }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div style="font-size: 0.75rem; color: #b45309; font-style: italic; font-weight: 600;">
+                            <i class="fas fa-circle-info" style="margin-right: 4px; color: #b45309;"></i>No subject
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
+        <i class="fas fa-check-circle" style="display: block; font-size: 2.5rem; margin-bottom: 1rem; color: var(--success); opacity: 0.3;"></i>
+        <p style="font-size: 0.9rem;">No teachers are scheduled for leave tomorrow.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Today's Leaves Section -->
+<div class="glass-card table-box animate-fade-in" style="margin-bottom: 2.5rem; border-left: 4px solid var(--rejected);">
+    <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <div>
+            <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">
+                <i class="fas fa-calendar-day" style="color: var(--rejected); margin-right: 8px; font-size: 0.85rem;"></i>Today — {{ today.strftime('%d %B %Y, %A') }}
+            </h3>
+            <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px;">Faculty currently on approved leave today.</p>
+        </div>
+        <div class="status-badge rejected-vibrant blink" style="font-size: 0.65rem;">
+            <i class="fas fa-circle" style="margin-right: 5px; font-size: 0.5rem;"></i>{{ today_leaves|length }} Absent Today
+        </div>
+    </div>
+
+    {% if today_leaves %}
+    <div style="padding: 1rem; display: flex; flex-wrap: wrap; gap: 1rem;">
+        {% for leave in today_leaves %}
+        <div class="glass-card" style="flex: 1; min-width: 280px; max-width: 400px; padding: 1.2rem; background: rgba(239,68,68,0.04); border: 1px solid rgba(239,68,68,0.15); transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 25px rgba(239,68,68,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.8rem;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 42px; height: 42px; background: linear-gradient(135deg, rgba(239,68,68,0.2), rgba(239,68,68,0.08)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--rejected); font-size: 1.1rem;">
+                        {{ leave.user.name[0] | upper }}
+                    </div>
+                    <div>
+                        <h4 style="color: white; font-weight: 700; font-size: 0.95rem;">{{ leave.user.name }}</h4>
+                        <span style="color: var(--text-muted); font-size: 0.7rem;">{{ leave.user.department or 'N/A' }}</span>
+                    </div>
+                </div>
+                <div class="status-badge" style="font-size: 0.6rem; background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.2);">
+                    <i class="fas fa-user-xmark" style="margin-right: 4px;"></i>Absent
+                </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px; background: rgba(239, 68, 68, 0.05); padding: 10px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.25);">
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem;">
+                    <i class="fas fa-calendar-days" style="color: #b91c1c; width: 16px; text-align: center;"></i>
+                    <span style="color: #1e293b; font-weight: 700;">{{ leave.dates }}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem;">
+                    <i class="fas fa-quote-left" style="color: #6b7280; width: 16px; text-align: center; opacity: 0.7;"></i>
+                    <span style="color: #374151; font-style: italic;">{{ leave.reason[:80] }}{{ '...' if leave.reason|length > 80 else '' }}</span>
+                </div>
+                {% if leave.user.email %}
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem;">
+                    <i class="fas fa-envelope" style="color: var(--primary); width: 16px; text-align: center;"></i>
+                    <span style="color: #4b5563; font-weight: 500;">{{ leave.user.email }}</span>
+                </div>
+                {% endif %}
+                {% if leave.user.phone %}
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem;">
+                    <i class="fas fa-phone" style="color: var(--success); width: 16px; text-align: center;"></i>
+                    <span style="color: #4b5563; font-weight: 500;">{{ leave.user.phone }}</span>
+                </div>
+                {% endif %}
+                
+                <!-- Today's Timetable / Classes -->
+                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(239, 68, 68, 0.25);">
+                    <div style="font-size: 0.7rem; color: #b91c1c; font-weight: 800; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 0.5px;">
+                        <i class="fas fa-list-check" style="margin-right: 4px;"></i>Classes Today:
+                    </div>
+                    {% if leave.scheduled_classes %}
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            {% for item in leave.scheduled_classes %}
+                            <div style="font-size: 0.75rem; color: #374151; display: flex; justify-content: space-between; align-items: center;">
+                                <span>P{{ item.period }}: <span style="font-weight: 700; color: #0f172a;">{{ item.subject }}</span></span>
+                                <span class="status-badge" style="background: #fee2e2; color: #b91c1c; border: 1px solid rgba(185, 28, 28, 0.3); font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; font-weight: 800;">{{ item.class_name }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div style="font-size: 0.75rem; color: #b91c1c; font-style: italic; font-weight: 600;">
+                            <i class="fas fa-circle-info" style="margin-right: 4px; color: #b91c1c;"></i>No subject
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
+        <i class="fas fa-check-circle" style="display: block; font-size: 2.5rem; margin-bottom: 1rem; color: var(--success); opacity: 0.3;"></i>
+        <p style="font-size: 0.9rem;">All faculty members are present today!</p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+@keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
+}
+.blink {
+    animation: blink 2s infinite;
+}
+</style>
+{% endblock %}

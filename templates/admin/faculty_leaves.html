@@ -35,9 +35,17 @@
 
     <!-- Inventory Table -->
     <div class="glass-card table-box animate-fade-in">
-        <div style="padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+        <div style="padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
             <h3 style="color: white; font-weight: 800; font-size: 1.1rem;">Current Faculty Inventory</h3>
-            <i class="fas fa-users-gear" style="color: var(--text-muted);"></i>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="position: relative;">
+                    <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem;"></i>
+                    <input type="text" id="teacherSearch" placeholder="Search teacher name..." 
+                        style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px 12px 10px 36px; border-radius: 10px; font-size: 0.85rem; width: 250px; outline: none; transition: border 0.3s;"
+                        onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
+                </div>
+                <i class="fas fa-users-gear" style="color: var(--text-muted);"></i>
+            </div>
         </div>
         
         <table>
@@ -49,9 +57,9 @@
                     {% endfor %}
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="facultyTableBody">
                 {% for t in teachers %}
-                <tr>
+                <tr class="teacher-row" data-name="{{ t.name|lower }}">
                     <td>
                         <div style="font-weight: 700; color: white;">{{ t.name }}</div>
                         <div style="font-size: 0.7rem; color: var(--text-muted);">{{ t.department }}</div>
@@ -64,7 +72,7 @@
                                 {% set bal_val = bal.balance %}
                             {% endif %}
                         {% endfor %}
-                        <span class="status-badge" style="background: rgba(255,255,255,0.05); color: {{ 'var(--success)' if bal_val > 5 else 'var(--danger)' }}; font-weight: 800; font-size: 0.85rem;">
+                        <span class="status-badge" style="background: rgba(255,255,255,0.05); color: {{ 'var(--success)' if bal_val > 0 else 'var(--danger)' }}; font-weight: 800; font-size: 0.85rem;">
                             {{ bal_val }}
                         </span>
                     </td>
@@ -73,6 +81,30 @@
                 {% endfor %}
             </tbody>
         </table>
+        <div id="noResults" style="display: none; text-align: center; padding: 2rem; color: var(--text-muted);">
+            <i class="fas fa-user-slash" style="font-size: 2rem; margin-bottom: 0.8rem; opacity: 0.3; display: block;"></i>
+            <p style="font-size: 0.9rem;">No teacher found matching your search.</p>
+        </div>
     </div>
 </div>
+
+<script>
+document.getElementById('teacherSearch').addEventListener('input', function() {
+    const query = this.value.toLowerCase().trim();
+    const rows = document.querySelectorAll('.teacher-row');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+        const name = row.getAttribute('data-name');
+        if (name.includes(query)) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    document.getElementById('noResults').style.display = visibleCount === 0 ? 'block' : 'none';
+});
+</script>
 {% endblock %}

@@ -19,7 +19,7 @@
                     <label style="color: var(--text-muted); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px;">Leave Classification <span style="color: var(--primary);">*</span></label>
                     <div style="position: relative;">
                         <i class="fas fa-tags" style="position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--primary);"></i>
-                        <select name="leave_type" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 14px 14px 14px 50px; border-radius: 12px; color: white; width: 100%; font-size: 0.95rem; cursor: pointer;" required>
+                        <select id="leaveTypeSelect" name="leave_type" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 14px 14px 14px 50px; border-radius: 12px; color: white; width: 100%; font-size: 0.95rem; cursor: pointer;" required>
                             <option value="" disabled selected>-- Choose Category --</option>
                             <option value="Casual Leave">Casual Leave</option>
                             <option value="Medical Leave">Medical Leave</option>
@@ -31,8 +31,8 @@
                     <!-- Multi-type Balance Guide -->
                     <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
                         {% for bal in user.balances %}
-                        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 8px; flex: 1; min-width: 100px; text-align: center;">
-                            <div style="font-size: 0.6rem; color: var(--text-muted); font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">{{ bal.leave_type[:2]|upper }}</div>
+                        <div class="balance-card" data-type="{{ bal.leave_type }}" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 8px; flex: 1; min-width: 100px; text-align: center; transition: all 0.3s;">
+                            <div style="font-size: 0.6rem; color: var(--text-muted); font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">{{ bal.leave_type }}</div>
                             <div style="font-size: 1.1rem; font-weight: 800; color: white;">{{ bal.balance }}</div>
                         </div>
                         {% else %}
@@ -107,5 +107,20 @@ function updateFileLabel(input) {
         label.style.color = 'var(--success)';
     }
 }
+
+document.getElementById('leaveTypeSelect').addEventListener('change', function() {
+    const selectedType = this.value;
+    document.querySelectorAll('.balance-card').forEach(card => {
+        if (card.dataset.type === selectedType) {
+            card.style.background = 'rgba(99, 102, 241, 0.15)';
+            card.style.borderColor = 'var(--primary)';
+            card.style.transform = 'scale(1.05)';
+        } else {
+            card.style.background = 'rgba(255,255,255,0.02)';
+            card.style.borderColor = 'rgba(255,255,255,0.05)';
+            card.style.transform = 'scale(1)';
+        }
+    });
+});
 </script>
 {% endblock %}
