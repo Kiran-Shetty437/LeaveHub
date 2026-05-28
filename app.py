@@ -304,6 +304,7 @@ def login():
             session['name'] = user.name
             session['department'] = user.department
             session['is_hod'] = user.is_hod or False
+            session['roll_no'] = user.roll_no
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid credentials!', 'danger')
@@ -323,6 +324,7 @@ def dashboard():
         session['department'] = user.department
         session['name'] = user.name
         session['is_hod'] = user.is_hod or False
+        session['roll_no'] = user.roll_no
     
     if role == 'Admin':
         teacher_count = User.query.filter_by(role='Teacher').count()
@@ -367,10 +369,27 @@ def dashboard():
         except Exception as e:
             print(f"Error loading mentors in dashboard: {e}")
 
-        # Filter count for mentored classes only
-        pending_student_leaves = LeaveRequest.query.join(User, LeaveRequest.user_id == User.id)\
-                                .filter(LeaveRequest.status == 'Pending', LeaveRequest.role == 'Student')\
-                                .filter(User.department.in_(mentored_classes)).count() if mentored_classes else 0
+        # Filter count for mentored classes only (with date filter)
+        pending_student_leaves = 0
+        if mentored_classes:
+            raw_pending_leaves = LeaveRequest.query.join(User, LeaveRequest.user_id == User.id)\
+                                    .filter(LeaveRequest.status == 'Pending', LeaveRequest.role == 'Student')\
+                                    .filter(User.department.in_(mentored_classes)).all()
+            
+            yesterday = (datetime.now() - timedelta(days=1)).date()
+            end_date = (datetime.now() + timedelta(days=10)).date()
+            
+            for leave in raw_pending_leaves:
+                try:
+                    if 'to' in leave.dates.lower():
+                        start_str = leave.dates.lower().split('to')[0].strip()
+                    else:
+                        start_str = leave.dates.strip()
+                    leave_start = datetime.strptime(start_str, '%d-%m-%Y').date()
+                    if yesterday <= leave_start <= end_date:
+                        pending_student_leaves += 1
+                except:
+                    pending_student_leaves += 1
                                 
         # Recent Student Absences (Current + 3 days Post-Leave)
         active_student_absences = []
@@ -396,14 +415,64 @@ def dashboard():
                 except:
                     continue
 
-        my_leaves = LeaveRequest.query.filter_by(user_id=session['user_id']).all()
+        # Today's Absentee List for Teacher's Classes
+        today_day = datetime.now().strftime('%A')
+        today_classes_objs = TeacherTimetable.query.filter_by(teacher_id=session['user_id'], day=today_day).all()
+        today_classes = list(set([tc.class_name for tc in today_classes_objs if tc.class_name]))
+        
+        today_class_absentees = {}
+        if today_classes:
+            all_approved_today = LeaveRequest.query.join(User, LeaveRequest.user_id == User.id)\
+                .filter(LeaveRequest.status == 'Approved', LeaveRequest.role == 'Student')\
+                .filter(User.department.in_(today_classes)).all()
+            
+            for leave in all_approved_today:
+                if is_absent_today(leave.dates):
+                    cls = leave.user.department
+                    if cls not in today_class_absentees:
+                        today_class_absentees[cls] = []
+                    today_class_absentees[cls].append(leave)
+                    
+        now_time = datetime.now().time()
+        is_after_9am = now_time >= datetime.strptime("09:00:00", "%H:%M:%S").time()
+
+        all_my_leaves = LeaveRequest.query.filter_by(user_id=session['user_id']).order_by(LeaveRequest.created_at.desc()).all()
+        my_leaves = []
+        now_date_for_leaves = datetime.now().date()
+        for leave in all_my_leaves:
+            try:
+                if 'to' in leave.dates.lower():
+                    end_str = leave.dates.lower().split('to')[1].strip()
+                else:
+                    end_str = leave.dates.strip()
+                end_dt = datetime.strptime(end_str, '%d-%m-%Y').date()
+                if now_date_for_leaves <= end_dt + timedelta(days=1):
+                    my_leaves.append(leave)
+            except:
+                my_leaves.append(leave)
         return render_template('teacher/dashboard.html', 
                                pending_student_leaves=pending_student_leaves, 
                                my_leaves=my_leaves,
-                               active_student_absences=active_student_absences)
+                               active_student_absences=active_student_absences,
+                               today_classes=today_classes,
+                               today_class_absentees=today_class_absentees,
+                               is_after_9am=is_after_9am)
     
     elif role == 'Student':
-        my_leaves = LeaveRequest.query.filter_by(user_id=session['user_id']).all()
+        all_my_leaves = LeaveRequest.query.filter_by(user_id=session['user_id']).order_by(LeaveRequest.created_at.desc()).all()
+        my_leaves = []
+        now_date_for_leaves = datetime.now().date()
+        for leave in all_my_leaves:
+            try:
+                if 'to' in leave.dates.lower():
+                    end_str = leave.dates.lower().split('to')[1].strip()
+                else:
+                    end_str = leave.dates.strip()
+                end_dt = datetime.strptime(end_str, '%d-%m-%Y').date()
+                if now_date_for_leaves <= end_dt + timedelta(days=1):
+                    my_leaves.append(leave)
+            except:
+                my_leaves.append(leave)
         now = datetime.now()
         for leave in my_leaves:
             leave.contact_teacher = False
@@ -703,9 +772,28 @@ def teacher_student_leaves():
         return render_template('teacher/student_leaves.html', leaves=[], mentored_classes=[])
 
     # Filter leaves: Student requests where student department is in mentored_classes
-    leaves = LeaveRequest.query.join(User, LeaveRequest.user_id == User.id)\
+    all_student_leaves = LeaveRequest.query.join(User, LeaveRequest.user_id == User.id)\
                                .filter(User.role == 'Student')\
+                               .filter(LeaveRequest.status == 'Pending')\
                                .filter(User.department.in_(mentored_classes)).all()
+                               
+    leaves = []
+    yesterday = (datetime.now() - timedelta(days=1)).date()
+    end_date = (datetime.now() + timedelta(days=10)).date()
+    
+    for leave in all_student_leaves:
+        try:
+            if 'to' in leave.dates.lower():
+                start_str = leave.dates.lower().split('to')[0].strip()
+            else:
+                start_str = leave.dates.strip()
+            
+            leave_start = datetime.strptime(start_str, '%d-%m-%Y').date()
+            if yesterday <= leave_start <= end_date:
+                leaves.append(leave)
+        except:
+            # If dates can't be parsed, include it to be safe so it doesn't get lost
+            leaves.append(leave)
                                
     return render_template('teacher/student_leaves.html', leaves=leaves, mentored_classes=mentored_classes)
 
@@ -1405,6 +1493,16 @@ def save_timetable():
         # Now we have final class_name and official_subject
         class_name = target_class
 
+        # Verify that the subject is assigned to this teacher by the HOD
+        assigned_subjects = TeacherSubject.query.filter_by(teacher_id=teacher_id).all()
+        assigned_subject_names = [sub.subject.strip().lower() for sub in assigned_subjects]
+        
+        if official_subject.strip().lower() not in assigned_subject_names:
+            return jsonify({
+                'success': False, 
+                'message': f'Warning: You can only assign subjects that the HOD has assigned to you. Assigned: {", ".join([sub.subject for sub in assigned_subjects]) or "None"}'
+            }), 400
+
         # Refined Clash Detection: Check if another teacher is already taking THIS class at THIS time
         existing_class_record = TeacherTimetable.query.filter(
             TeacherTimetable.day == day,
@@ -1462,6 +1560,41 @@ def student_timetable():
                            periods=periods,
                            student_class=student_class)
 
+# Helper for HOD allowed subjects
+def get_hod_allowed_subjects(dept):
+    mapping = get_class_subject_mapping()
+    dept_classes = []
+    
+    if 'computer' in dept.lower():
+        dept_classes = ['IBCA', 'IIBCA', 'IIIBCA', 'BSC']
+    elif 'commerce' in dept.lower():
+        dept_classes = ['IBCOM', 'IIBCOM', 'IIIBCOM']
+    elif 'business' in dept.lower():
+        dept_classes = ['IBBA', 'IIBBA', 'IIIBBA']
+    elif 'language' in dept.lower():
+        language_subjects = ['english', 'kannada', 'kannada/hindi', 'hindi']
+        for c_name, subs in mapping.items():
+            if any(s.lower() in language_subjects for s in subs):
+                dept_classes.append(c_name)
+    else:
+        dept_classes = list(mapping.keys())
+        
+    all_subjects = []
+    language_subjects_lower = ['english', 'kannada', 'kannada/hindi', 'hindi']
+    
+    for c_name, subjects in mapping.items():
+        if c_name in dept_classes:
+            for s in subjects:
+                is_lang = s.lower() in language_subjects_lower
+                if 'language' in dept.lower():
+                    if is_lang:
+                        all_subjects.append(s)
+                else:
+                    if not is_lang:
+                        all_subjects.append(s)
+                        
+    return dept_classes, sorted(list(set(all_subjects)))
+
 # HOD Routes
 @app.route('/hod/assign_subjects')
 def hod_assign_subjects():
@@ -1472,24 +1605,8 @@ def hod_assign_subjects():
         return redirect(url_for('dashboard'))
     
     dept = user.department
-    
-    # Determine allowed classes for this department
-    dept_classes = []
-    if 'computer' in dept.lower():
-        dept_classes = ['IBCA', 'IIBCA', 'IIIBCA', 'BSC']
-    elif 'commerce' in dept.lower():
-        dept_classes = ['IBCOM', 'IIBCOM', 'IIIBCOM']
-    elif 'business' in dept.lower():
-        dept_classes = ['IBBA', 'IIBBA', 'IIIBBA']
-    else:
-        dept_classes = [] # Language or others might have to see all or specific
-        
+    dept_classes, all_subjects = get_hod_allowed_subjects(dept)
     mapping = get_class_subject_mapping()
-    all_subjects = []
-    for c_name, subjects in mapping.items():
-        if not dept_classes or c_name in dept_classes:
-            all_subjects.extend(subjects)
-    all_subjects = sorted(list(set(all_subjects)))
     
     # Get all teachers in this department
     dept_teachers = User.query.filter_by(role='Teacher', department=dept).all()
@@ -1522,13 +1639,28 @@ def hod_assign_subjects():
             'assigned_subjects': assigned_subs_list
         })
     
+    # Build class timetables
+    classes_timetable = {}
+    for c_name in dept_classes:
+        records = TeacherTimetable.query.filter_by(class_name=c_name).all()
+        tt = {}
+        for rec in records:
+            if rec.day not in tt: tt[rec.day] = {}
+            tt[rec.day][rec.period] = {
+                'subject': rec.subject,
+                'teacher': rec.teacher.name if rec.teacher else 'Unknown'
+            }
+        classes_timetable[c_name] = tt
+
     return render_template('teacher/hod_assign.html',
                            teachers_data=teachers_data,
                            all_subjects=all_subjects,
                            class_mapping=mapping,
                            days=days,
                            periods=periods,
-                           department=dept)
+                           department=dept,
+                           dept_classes=dept_classes,
+                           classes_timetable=classes_timetable)
 
 @app.route('/api/hod_assign_teacher_subject', methods=['POST'])
 def hod_assign_teacher_subject():
@@ -1551,6 +1683,16 @@ def hod_assign_teacher_subject():
     existing = TeacherSubject.query.filter_by(teacher_id=teacher_id, subject=subject).first()
     
     if action == 'add':
+        dept_classes, allowed_subjects = get_hod_allowed_subjects(user.department)
+        allowed_subjects_lower = [s.strip().lower() for s in allowed_subjects]
+        
+        if subject.strip().lower() not in allowed_subjects_lower:
+            return jsonify({'success': False, 'message': f"You can only assign {user.department} subjects."}), 400
+            
+        existing_global = TeacherSubject.query.filter(db.func.lower(TeacherSubject.subject) == subject.strip().lower()).first()
+        if existing_global and existing_global.teacher_id != teacher_id:
+            return jsonify({'success': False, 'message': f"'{subject}' is already assigned to {existing_global.teacher.name}. One subject per teacher."}), 400
+            
         if not existing:
             new_sub = TeacherSubject(teacher_id=teacher_id, subject=subject)
             db.session.add(new_sub)
@@ -1601,6 +1743,12 @@ def hod_save_timetable():
                     official_subject = s
                     break
             if class_name: break
+            
+        # HOD Authorization check for this subject
+        dept_classes, allowed_subjects = get_hod_allowed_subjects(user.department)
+        allowed_subjects_lower = [s.strip().lower() for s in allowed_subjects]
+        if search_sub not in allowed_subjects_lower:
+            return jsonify({'success': False, 'message': f"You can only assign {user.department} subjects."}), 400
         
         if not class_name:
             class_name = 'General'
@@ -1615,6 +1763,21 @@ def hod_save_timetable():
         
         if existing:
             return jsonify({'success': False, 'message': f'Class {class_name} is busy with {existing.subject} (Teacher: {existing.teacher.name})'}), 400
+            
+        # Ensure subject is exclusively assigned to this teacher
+        existing_sub_assignment = TeacherSubject.query.filter(db.func.lower(TeacherSubject.subject) == official_subject.strip().lower()).first()
+        if existing_sub_assignment and existing_sub_assignment.teacher_id != target_teacher_id:
+            return jsonify({'success': False, 'message': f"'{official_subject}' is already exclusively assigned to {existing_sub_assignment.teacher.name}."}), 400
+            
+        # Check if this subject for this class is already assigned to ANOTHER teacher in timetable
+        existing_subject_teacher = TeacherTimetable.query.filter(
+            TeacherTimetable.class_name == class_name,
+            TeacherTimetable.subject == official_subject,
+            TeacherTimetable.teacher_id != target_teacher_id
+        ).first()
+        
+        if existing_subject_teacher:
+            return jsonify({'success': False, 'message': f'{official_subject} for {class_name} is already assigned to {existing_subject_teacher.teacher.name}'}), 400
     
     # Find or create record
     record = TeacherTimetable.query.filter_by(teacher_id=target_teacher_id, day=day, period=period).first()
@@ -1626,6 +1789,11 @@ def hod_save_timetable():
         else:
             new_record = TeacherTimetable(teacher_id=target_teacher_id, day=day, period=period, subject=official_subject, class_name=class_name)
             db.session.add(new_record)
+            
+        # Automatically add to Assigned Subjects if not present
+        existing_sub = TeacherSubject.query.filter_by(teacher_id=target_teacher_id, subject=official_subject).first()
+        if not existing_sub:
+            db.session.add(TeacherSubject(teacher_id=target_teacher_id, subject=official_subject))
     else:
         if record:
             db.session.delete(record)

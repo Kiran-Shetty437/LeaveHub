@@ -92,6 +92,11 @@
                     <i class="fas fa-calendar-days"></i>
                     <span>Timetable</span>
                 </a>
+                <a href="{{ url_for('teacher_attendance_list') }}"
+                    class="nav-item {% if '/teacher/attendance' in request.path or '/teacher/mark_attendance' in request.path %}active{% endif %}">
+                    <i class="fas fa-clipboard-user"></i>
+                    <span>Attendance</span>
+                </a>
 
                 {% if session.get('is_hod') %}
                 <a href="{{ url_for('hod_assign_subjects') }}"
