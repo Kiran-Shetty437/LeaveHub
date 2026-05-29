@@ -126,6 +126,52 @@
         <p style="color: var(--text-muted); font-size: 0.85rem; font-weight: 600;">Select a teacher above to view & edit their timetable</p>
     </div>
 
+    <!-- Mentor Management Section -->
+    <div class="glass-card" style="padding: 1.5rem; margin-top: 2rem;">
+        <h3 style="font-size: 1.2rem; font-weight: 800; color: white; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
+            <i class="fas fa-user-group" style="color: var(--accent); margin-right: 8px;"></i> Mentor Management
+            <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600; margin-left: 10px;">Each class must have exactly 2 mentors</span>
+        </h3>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem;">
+            {% for c_name in dept_classes %}
+            <div class="glass-card mentor-card" id="mentor-card-{{ c_name }}" style="padding: 1.2rem; border: 1px solid rgba(255,255,255,0.08);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h4 style="font-size: 0.95rem; font-weight: 800; color: white;">
+                        <i class="fas fa-graduation-cap" style="color: var(--primary); margin-right: 6px;"></i> {{ c_name }}
+                    </h4>
+                    <button onclick="saveMentors('{{ c_name }}')" class="glow-button" style="padding: 5px 14px; font-size: 0.7rem; border: none; cursor: pointer;">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div>
+                        <label style="color: var(--text-muted); font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 4px;">Mentor 1</label>
+                        <select id="mentor1-{{ c_name }}" style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 12px; width: 100%; font-size: 0.85rem;">
+                            <option value="">— Select Mentor 1 —</option>
+                            {% for tname in dept_teacher_names %}
+                            <option value="{{ tname }}" {% if dept_mentors[c_name].mentor1 == tname %}selected{% endif %}>{{ tname }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="color: var(--text-muted); font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 4px;">Mentor 2</label>
+                        <select id="mentor2-{{ c_name }}" style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 12px; width: 100%; font-size: 0.85rem;">
+                            <option value="">— Select Mentor 2 —</option>
+                            {% for tname in dept_teacher_names %}
+                            <option value="{{ tname }}" {% if dept_mentors[c_name].mentor2 == tname %}selected{% endif %}>{{ tname }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="mentor-status-{{ c_name }}" style="display: none; margin-top: 10px; font-size: 0.75rem; font-weight: 700; padding: 8px; border-radius: 8px; text-align: center;"></div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
     <!-- Department Class Timetables -->
     <div class="glass-card" style="padding: 1.5rem; margin-top: 2rem;">
         <h3 style="font-size: 1.2rem; font-weight: 800; color: white; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
@@ -439,10 +485,52 @@
             );
         }
     });
+    // Mentor Management
+    async function saveMentors(className) {
+        const mentor1 = document.getElementById('mentor1-' + className).value;
+        const mentor2 = document.getElementById('mentor2-' + className).value;
+        const statusEl = document.getElementById('mentor-status-' + className);
+        
+        try {
+            const res = await fetch('/api/hod_update_mentor', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    class_name: className,
+                    mentor1: mentor1,
+                    mentor2: mentor2
+                })
+            });
+            const data = await res.json();
+            
+            statusEl.style.display = 'block';
+            if (data.success) {
+                statusEl.innerText = '✓ ' + data.message;
+                statusEl.style.color = 'var(--success)';
+                statusEl.style.background = 'rgba(34, 197, 94, 0.1)';
+                statusEl.style.border = '1px solid rgba(34, 197, 94, 0.2)';
+            } else {
+                statusEl.innerText = '✗ ' + data.message;
+                statusEl.style.color = 'var(--danger)';
+                statusEl.style.background = 'rgba(239, 68, 68, 0.1)';
+                statusEl.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+            }
+            
+            setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
+        } catch (e) {
+            statusEl.style.display = 'block';
+            statusEl.innerText = '✗ Network error';
+            statusEl.style.color = 'var(--danger)';
+            statusEl.style.background = 'rgba(239, 68, 68, 0.1)';
+            setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
+        }
+    }
 </script>
 
 <style>
 .timetable-td:hover { background: rgba(99, 102, 241, 0.05) !important; box-shadow: inset 0 0 0 1px var(--primary); }
 .teacher-tab:hover { background: rgba(99, 102, 241, 0.1) !important; color: white !important; }
+.mentor-card { transition: all 0.3s; }
+.mentor-card:hover { border-color: rgba(139, 92, 246, 0.3) !important; box-shadow: 0 0 20px rgba(139, 92, 246, 0.05); }
 </style>
 {% endblock %}

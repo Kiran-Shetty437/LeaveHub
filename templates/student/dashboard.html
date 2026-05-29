@@ -53,6 +53,38 @@
     </div>
 </div>
 
+<!-- Class Information -->
+<div class="glass-card animate-fade-in" style="margin-bottom: 2.5rem; border-top: 4px solid var(--accent);">
+    <div style="padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 10px;">
+        <i class="fas fa-chalkboard-teacher" style="color: var(--accent); font-size: 1.2rem;"></i>
+        <h3 style="font-size: 1.1rem; font-weight: 800; color: white; margin: 0;">Class Information</h3>
+    </div>
+    <div style="padding: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+        <div>
+            <p style="color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Head of Department (HOD)</p>
+            <p style="color: white; font-weight: 700; font-size: 1.1rem; margin: 0;">{{ hod_name }}</p>
+        </div>
+        <div>
+            <p style="color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Class Mentor</p>
+            <p style="color: white; font-weight: 700; font-size: 1.1rem; margin: 0;">{{ mentor_name }}</p>
+        </div>
+    </div>
+    
+    {% if subject_teachers %}
+    <div style="padding: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.1);">
+        <p style="color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1rem;">Subject Teachers</p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem;">
+            {% for subject, teacher in subject_teachers.items() %}
+            <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border-left: 3px solid var(--primary);">
+                <p style="color: var(--primary); font-size: 0.8rem; font-weight: 700; margin-bottom: 3px;">{{ subject }}</p>
+                <p style="color: white; font-size: 0.95rem; font-weight: 600; margin: 0;">{{ teacher }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
 <!-- Recent Transactions -->
 <div class="glass-card table-box animate-fade-in" style="margin-bottom: 3rem;">
     <div style="padding: 1.5rem 1.5rem 0.5rem; display: flex; justify-content: space-between; align-items: center;">

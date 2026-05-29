@@ -94,17 +94,21 @@
                     </span>
                 </td>
                 <td id="actions-cell-{{ leave.id }}">
-                    {% if effective != 'Approved' and effective != 'Rejected' and effective != 'Not Approved (Expired)' and effective != 'Timeout' and (leave.role == 'Teacher' or leave.status == 'Forwarded to Admin') %}
+                    {% if effective not in ['Not Approved (Expired)', 'Timeout'] and (leave.role == 'Teacher' or leave.status in ['Forwarded to Admin', 'Approved', 'Rejected']) %}
                     <div style="display: flex; flex-direction: column; gap: 8px;">
                         <input type="text" id="remark-{{ leave.id }}" placeholder="Add remark..." 
                                style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 4px 8px; font-size: 0.75rem; color: white; width: 100%;">
                         <div style="display: flex; gap: 8px;">
+                            {% if effective != 'Approved' %}
                             <button onclick="handleAction({{ leave.id }}, 'Approved')" class="status-badge approved" style="border: none; cursor: pointer; padding: 8px; border-radius: 10px; flex: 1;">
                                 <i class="fas fa-check"></i>
                             </button>
+                            {% endif %}
+                            {% if effective != 'Rejected' %}
                             <button onclick="handleAction({{ leave.id }}, 'Rejected')" class="status-badge rejected" style="border: none; cursor: pointer; padding: 8px; border-radius: 10px; flex: 1;">
                                 <i class="fas fa-times"></i>
                             </button>
+                            {% endif %}
                         </div>
                     </div>
                     {% elif effective == 'Not Approved (Expired)' or effective == 'Timeout' %}

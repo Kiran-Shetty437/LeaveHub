@@ -5,10 +5,49 @@
 
 {% block content %}
 <div class="glass-card table-box animate-fade-in" style="margin-bottom: 3rem;">
-    <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05);">
-        <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Verified Student Database</h3>
-        <div class="status-badge" style="background: rgba(139, 92, 246, 0.1); color: var(--accent);">
-            <i class="fas fa-id-card"></i> {{ students|length }} Enrolled
+    <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; gap: 10px;">
+        <h3 style="font-size: 1.1rem; font-weight: 800; color: white; margin: 0;">Verified Student Database</h3>
+        
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <!-- Small Search Bar -->
+            <div style="position: relative; width: 200px;">
+                <i class="fas fa-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem;"></i>
+                <input type="text" id="studentSearch" placeholder="Search..." class="form-control" style="background:rgba(255,255,255,0.05); color:white; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:6px 10px 6px 30px; font-size: 0.85rem; width: 100%;">
+            </div>
+            
+            <!-- Filter Dropdown Button -->
+            <div style="position: relative;">
+                <button onclick="toggleFilterMenu('studentFilterMenu')" class="status-badge" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; padding: 6px 12px; font-size: 0.85rem;">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+                <!-- Dropdown Menu -->
+                <div id="studentFilterMenu" style="display: none; position: absolute; top: 110%; right: 0; background: #ffffff; border: 1px solid var(--border-glass); border-radius: 8px; padding: 15px; width: 220px; z-index: 100; box-shadow: var(--shadow-lg);">
+                    
+                    <p style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 800; margin-bottom: 10px;">Classes / Batches</p>
+                    <div style="max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                        {% set classes = [] %}
+                        {% for s in students %}
+                            {% if s.department and s.department not in classes %}
+                                {% set _ = classes.append(s.department) %}
+                                <label style="display:flex; align-items:center; justify-content:flex-start; width:100%; gap:10px; color:var(--text-main); font-size:0.85rem; cursor:pointer; margin:0;">
+                                    <input type="checkbox" class="class-checkbox" value="{{ s.department }}" onchange="filterStudents()" style="accent-color: var(--primary); width: 16px !important; height: 16px !important; padding: 0 !important; margin: 0 !important; flex-shrink: 0; box-shadow: none;"> 
+                                    <span style="flex:1; text-align:left; line-height: 1.2;">{{ s.department }}</span>
+                                </label>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-badge" style="background: rgba(139, 92, 246, 0.1); color: var(--accent); font-size: 0.85rem;">
+                <i class="fas fa-id-card"></i> {{ students|length }} Enrolled
+            </div>
+            <button onclick="document.getElementById('addStudentPopup').style.display='block'" class="glow-button" style="padding: 6px 12px; font-size: 0.85rem; border: none; cursor: pointer;">
+                <i class="fas fa-plus"></i> Add
+            </button>
+            <button onclick="document.getElementById('uploadJsonPopup').style.display='block'" class="status-badge" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; padding: 6px 12px; font-size: 0.85rem;">
+                <i class="fas fa-file-upload"></i> JSON
+            </button>
         </div>
     </div>
 
@@ -23,9 +62,9 @@
                 <th>Actions</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="studentTableBody">
             {% for student in students %}
-            <tr>
+            <tr class="student-row" data-name="{{ student.name | lower }}" data-username="{{ student.username | lower }}" data-roll="{{ student.roll_no | lower }}" data-class="{{ student.department }}">
                 <td style="font-weight: 800; color: var(--accent); font-family: 'Inter', sans-serif;">{{ student.roll_no }}</td>
                 <td>
                     <div style="display: flex; align-items: center; gap: 12px;">
@@ -52,7 +91,7 @@
                 </td>
             </tr>
             {% else %}
-            <tr>
+            <tr id="noStudentRow">
                 <td colspan="6" style="text-align: center; padding: 5rem; color: var(--text-muted);">
                     <i class="fas fa-user-tag" style="display: block; font-size: 3rem; margin-bottom: 1.5rem; opacity: 0.1;"></i>
                     No students currently enrolled.
@@ -62,4 +101,80 @@
         </tbody>
     </table>
 </div>
+
+<div id="addStudentPopup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6) !important; z-index:9999; backdrop-filter:blur(5px);">
+    <div class="glass-card" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:500px; padding:2rem; background:#ffffff !important;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:1.5rem;">
+            <h3 style="color:var(--text-main); font-weight:800; margin:0;">Add New Student</h3>
+            <button onclick="document.getElementById('addStudentPopup').style.display='none'" style="background:none; border:none; color:var(--text-muted); cursor:pointer;"><i class="fas fa-times"></i></button>
+        </div>
+        <form method="POST" action="{{ url_for('add_student') }}">
+            <input type="text" name="name" placeholder="Full Name" required class="form-control" style="margin-bottom:10px;">
+            <input type="text" name="username" placeholder="Username (for login)" required class="form-control" style="margin-bottom:10px;">
+            <input type="password" name="password" placeholder="Password" required class="form-control" style="margin-bottom:10px;">
+            <input type="text" name="department" placeholder="Batch / Class" required class="form-control" style="margin-bottom:10px;">
+            <input type="text" name="roll_no" placeholder="Roll Number" required class="form-control" style="margin-bottom:10px;">
+            <input type="email" name="email" placeholder="Email" class="form-control" style="margin-bottom:10px;">
+            <input type="text" name="phone" placeholder="Phone" class="form-control" style="margin-bottom:15px;">
+            <button type="submit" class="glow-button" style="width:100%; justify-content:center; padding:10px; border:none; cursor:pointer;">Create Student</button>
+        </form>
+    </div>
+</div>
+
+<div id="uploadJsonPopup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6) !important; z-index:9999; backdrop-filter:blur(5px);">
+    <div class="glass-card" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:500px; padding:2rem; background:#ffffff !important;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:1.5rem;">
+            <h3 style="color:var(--text-main); font-weight:800; margin:0;">Upload Students JSON</h3>
+            <button onclick="document.getElementById('uploadJsonPopup').style.display='none'" style="background:none; border:none; color:var(--text-muted); cursor:pointer;"><i class="fas fa-times"></i></button>
+        </div>
+        <form method="POST" action="{{ url_for('upload_students_json') }}" enctype="multipart/form-data">
+            <div style="background: rgba(0,0,0,0.02); border: 2px dashed rgba(0,0,0,0.1); padding: 2rem; border-radius: 12px; text-align: center; margin-bottom:15px;">
+                <input type="file" name="json_file" accept=".json" required style="color:var(--text-main);">
+            </div>
+            <button type="submit" class="glow-button" style="width:100%; justify-content:center; padding:10px; border:none; cursor:pointer;">Upload & Import</button>
+        </form>
+    </div>
+</div>
+<script>
+    function filterStudents() {
+        const search = document.getElementById('studentSearch').value.toLowerCase();
+        const classCheckboxes = document.querySelectorAll('.class-checkbox:checked');
+        const selectedClasses = Array.from(classCheckboxes).map(cb => cb.value);
+        
+        const rows = document.querySelectorAll('.student-row');
+        let visible = 0;
+        
+        rows.forEach(row => {
+            const rowName = row.getAttribute('data-name');
+            const rowUser = row.getAttribute('data-username');
+            const rowRoll = row.getAttribute('data-roll');
+            const rowClass = row.getAttribute('data-class');
+            
+            let show = true;
+            if (search && !rowName.includes(search) && !rowUser.includes(search) && !rowRoll.includes(search)) show = false;
+            if (selectedClasses.length > 0 && !selectedClasses.includes(rowClass)) show = false;
+            
+            row.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+        
+        const noRow = document.getElementById('noStudentRow');
+        if (noRow) noRow.style.display = visible === 0 ? '' : 'none';
+    }
+    
+    function toggleFilterMenu(id) {
+        const menu = document.getElementById(id);
+        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+    }
+
+    document.addEventListener('click', function(event) {
+        const menu = document.getElementById('studentFilterMenu');
+        const filterBtn = menu.previousElementSibling;
+        if (menu && menu.style.display === 'block' && !menu.contains(event.target) && !filterBtn.contains(event.target)) {
+            menu.style.display = 'none';
+        }
+    });
+    
+    document.getElementById('studentSearch').addEventListener('input', filterStudents);
+</script>
 {% endblock %}

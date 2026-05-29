@@ -1,5 +1,17 @@
 [
     {
+        "name": "Administrator",
+        "role": "Admin",
+        "username": "admin",
+        "password": "admin123",
+        "department": null,
+        "email": null,
+        "phone": null,
+        "dob": null,
+        "roll_no": null,
+        "is_hod": false
+    },
+    {
         "name": "Ananya Kulkarni",
         "role": "Teacher",
         "username": "Ananya Kulkarni",
@@ -249,7 +261,7 @@
         "phone": "9546357522",
         "dob": "1992-05-11",
         "roll_no": null,
-        "is_hod": true
+        "is_hod": false
     },
     {
         "name": "Siddharth Yadav",
@@ -273,7 +285,7 @@
         "phone": "9047369266",
         "dob": "1975-03-14",
         "roll_no": null,
-        "is_hod": false
+        "is_hod": true
     },
     {
         "name": "Sunita Yadav",

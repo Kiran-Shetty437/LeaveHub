@@ -5,10 +5,58 @@
 
 {% block content %}
 <div class="glass-card table-box animate-fade-in" style="margin-bottom: 2rem;">
-    <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05);">
-        <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Global Teacher List</h3>
-        <div class="status-badge" style="background: rgba(99, 102, 241, 0.1); color: var(--primary);">
-            <i class="fas fa-users-viewfinder"></i> {{ teachers|length }} Total
+    <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; gap: 10px;">
+        <h3 style="font-size: 1.1rem; font-weight: 800; color: white; margin: 0;">Global Teacher List</h3>
+        
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <!-- Small Search Bar -->
+            <div style="position: relative; width: 200px;">
+                <i class="fas fa-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem;"></i>
+                <input type="text" id="teacherSearch" placeholder="Search..." class="form-control" style="background:rgba(255,255,255,0.05); color:white; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:6px 10px 6px 30px; font-size: 0.85rem; width: 100%;">
+            </div>
+            
+            <!-- Filter Dropdown Button -->
+            <div style="position: relative;">
+                <button onclick="toggleFilterMenu('teacherFilterMenu')" class="status-badge" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; padding: 6px 12px; font-size: 0.85rem;">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+                <!-- Dropdown Menu -->
+                <div id="teacherFilterMenu" style="display: none; position: absolute; top: 110%; right: 0; background: #ffffff; border: 1px solid var(--border-glass); border-radius: 8px; padding: 15px; width: 220px; z-index: 100; box-shadow: var(--shadow-lg);">
+                    
+                    <p style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 800; margin-bottom: 10px;">Departments</p>
+                    <div style="max-height: 150px; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px;">
+                        {% set depts = [] %}
+                        {% for t in teachers %}
+                            {% if t.department and t.department not in depts %}
+                                {% set _ = depts.append(t.department) %}
+                                <label style="display:flex; align-items:center; justify-content:flex-start; width:100%; gap:10px; color:var(--text-main); font-size:0.85rem; cursor:pointer; margin:0;">
+                                    <input type="checkbox" class="dept-checkbox" value="{{ t.department }}" onchange="filterTeachers()" style="accent-color: var(--primary); width: 16px !important; height: 16px !important; padding: 0 !important; margin: 0 !important; flex-shrink: 0; box-shadow: none;"> 
+                                    <span style="flex:1; text-align:left; line-height: 1.2;">{{ t.department }}</span>
+                                </label>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    
+                    <p style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 800; margin-bottom: 10px;">Roles</p>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label style="display:flex; align-items:center; justify-content:flex-start; width:100%; gap:10px; color:var(--text-main); font-size:0.85rem; cursor:pointer; margin:0;">
+                            <input type="checkbox" id="teacherHOD" onchange="filterTeachers()" style="accent-color: var(--warning); width: 16px !important; height: 16px !important; padding: 0 !important; margin: 0 !important; flex-shrink: 0; box-shadow: none;"> 
+                            <span style="flex:1; text-align:left; line-height: 1.2;">HOD Only</span>
+                        </label>
+                        <label style="display:flex; align-items:center; justify-content:flex-start; width:100%; gap:10px; color:var(--text-main); font-size:0.85rem; cursor:pointer; margin:0;">
+                            <input type="checkbox" id="teacherMentor" onchange="filterTeachers()" style="accent-color: var(--accent); width: 16px !important; height: 16px !important; padding: 0 !important; margin: 0 !important; flex-shrink: 0; box-shadow: none;"> 
+                            <span style="flex:1; text-align:left; line-height: 1.2;">Mentor Only</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-badge" style="background: rgba(99, 102, 241, 0.1); color: var(--primary); font-size: 0.85rem;">
+                <i class="fas fa-users-viewfinder"></i> {{ teachers|length }} Total
+            </div>
+            <button onclick="document.getElementById('addTeacherPopup').style.display='block'" class="glow-button" style="padding: 6px 12px; font-size: 0.85rem; border: none; cursor: pointer;">
+                <i class="fas fa-plus"></i> Add Teacher
+            </button>
         </div>
     </div>
 
@@ -23,16 +71,26 @@
                 <th>Actions</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="teacherTableBody">
             {% for teacher in teachers %}
-            <tr>
+            <tr class="teacher-row" data-name="{{ teacher.name | lower }}" data-username="{{ teacher.username | lower }}" data-dept="{{ teacher.department }}" data-hod="{{ 'true' if teacher.is_hod else 'false' }}" data-mentor="{{ 'true' if teacher.is_mentor else 'false' }}" data-id="{{ teacher.id }}">
                 <td style="color: var(--text-muted); font-family: monospace; font-size: 0.85rem;">#{{ teacher.id }}</td>
                 <td>
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <div style="width: 32px; height: 32px; background: rgba(255,255,255,0.05); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--primary); font-size: 0.75rem;">
                             {{ teacher.name[0] | upper }}
                         </div>
-                        <span style="font-weight: 700; color: white;">{{ teacher.name }}</span>
+                        <div style="display: flex; flex-direction: column;">
+                            <span style="font-weight: 700; color: white; display: flex; align-items: center; gap: 5px;">
+                                {{ teacher.name }}
+                                {% if teacher.is_hod %}
+                                <i class="fas fa-crown hod-badge" style="color: var(--warning); font-size: 0.75rem;" title="Head of Department"></i>
+                                {% endif %}
+                                {% if teacher.is_mentor %}
+                                <i class="fas fa-user-group" style="color: var(--accent); font-size: 0.75rem;" title="Mentor"></i>
+                                {% endif %}
+                            </span>
+                        </div>
                     </div>
                 </td>
                 <td>
@@ -50,13 +108,20 @@
                     </code>
                 </td>
                 <td>
-                    <a href="{{ url_for('delete_user', user_id=teacher.id) }}" class="status-badge rejected" style="text-decoration: none; transition: 0.3s; cursor: pointer;" onclick="return confirm('Confirm deletion of faculty member?')">
-                        <i class="fas fa-user-minus"></i> TERMINATE
-                    </a>
+                    <div style="display: flex; gap: 8px;">
+                        {% if not teacher.is_hod %}
+                        <button onclick="makeHOD({{ teacher.id }}, '{{ teacher.department }}')" class="status-badge approved hod-btn" style="border: none; cursor: pointer; text-decoration: none;" title="Make HOD">
+                            <i class="fas fa-crown"></i>
+                        </button>
+                        {% endif %}
+                        <a href="{{ url_for('delete_user', user_id=teacher.id) }}" class="status-badge rejected" style="text-decoration: none; transition: 0.3s; cursor: pointer;" onclick="return confirm('Confirm deletion of faculty member?')">
+                            <i class="fas fa-trash-can"></i>
+                        </a>
+                    </div>
                 </td>
             </tr>
             {% else %}
-            <tr>
+            <tr id="noTeacherRow">
                 <td colspan="6" style="text-align: center; padding: 5rem; color: var(--text-muted);">
                     <i class="fas fa-user-slash" style="display: block; font-size: 3rem; margin-bottom: 1.5rem; opacity: 0.1;"></i>
                     No faculty records found.
@@ -66,4 +131,90 @@
         </tbody>
     </table>
 </div>
+
+<div id="addTeacherPopup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6) !important; z-index:9999; backdrop-filter:blur(5px);">
+    <div class="glass-card" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:500px; padding:2rem; background:#ffffff !important;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:1.5rem;">
+            <h3 style="color:var(--text-main); font-weight:800; margin:0;">Add New Teacher</h3>
+            <button onclick="document.getElementById('addTeacherPopup').style.display='none'" style="background:none; border:none; color:var(--text-muted); cursor:pointer;"><i class="fas fa-times"></i></button>
+        </div>
+        <form method="POST" action="{{ url_for('add_teacher') }}">
+            <input type="text" name="name" placeholder="Full Name" required class="form-control" style="margin-bottom:10px;">
+            <input type="text" name="username" placeholder="Username (for login)" required class="form-control" style="margin-bottom:10px;">
+            <input type="password" name="password" placeholder="Password" required class="form-control" style="margin-bottom:10px;">
+            <input type="text" name="department" placeholder="Department" required class="form-control" style="margin-bottom:10px;">
+            <input type="email" name="email" placeholder="Email" class="form-control" style="margin-bottom:10px;">
+            <input type="text" name="phone" placeholder="Phone" class="form-control" style="margin-bottom:15px;">
+            <button type="submit" class="glow-button" style="width:100%; justify-content:center; padding:10px; border:none; cursor:pointer;">Create Teacher</button>
+        </form>
+    </div>
+</div>
+<script>
+    function filterTeachers() {
+        const search = document.getElementById('teacherSearch').value.toLowerCase();
+        
+        const deptCheckboxes = document.querySelectorAll('.dept-checkbox:checked');
+        const selectedDepts = Array.from(deptCheckboxes).map(cb => cb.value);
+        
+        const hodOnly = document.getElementById('teacherHOD').checked;
+        const mentorOnly = document.getElementById('teacherMentor').checked;
+        
+        const rows = document.querySelectorAll('.teacher-row');
+        let visible = 0;
+        
+        rows.forEach(row => {
+            const rowName = row.getAttribute('data-name');
+            const rowUser = row.getAttribute('data-username');
+            const rowId = row.getAttribute('data-id');
+            const rowDept = row.getAttribute('data-dept');
+            const rowHod = row.getAttribute('data-hod') === 'true';
+            const rowMentor = row.getAttribute('data-mentor') === 'true';
+            
+            let show = true;
+            if (search && !rowName.includes(search) && !rowUser.includes(search) && !rowId.includes(search)) show = false;
+            
+            if (selectedDepts.length > 0 && !selectedDepts.includes(rowDept)) show = false;
+            if (hodOnly && !rowHod) show = false;
+            if (mentorOnly && !rowMentor) show = false;
+            
+            row.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+        
+        const noRow = document.getElementById('noTeacherRow');
+        if (noRow) noRow.style.display = visible === 0 ? '' : 'none';
+    }
+    
+    function toggleFilterMenu(id) {
+        const menu = document.getElementById(id);
+        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+    }
+
+    document.addEventListener('click', function(event) {
+        const menu = document.getElementById('teacherFilterMenu');
+        const filterBtn = menu.previousElementSibling;
+        if (menu && menu.style.display === 'block' && !menu.contains(event.target) && !filterBtn.contains(event.target)) {
+            menu.style.display = 'none';
+        }
+    });
+    
+    document.getElementById('teacherSearch').addEventListener('input', filterTeachers);
+
+    async function makeHOD(teacherId, dept) {
+        if (!confirm(`Are you sure you want to make this teacher the Head of Department for ${dept}? This will remove the HOD title from anyone else in ${dept}.`)) return;
+        
+        try {
+            const res = await fetch(`/admin/set_hod/${teacherId}`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Failed to update HOD status.');
+            }
+        } catch (e) {
+            alert('An error occurred.');
+            console.error(e);
+        }
+    }
+</script>
 {% endblock %}

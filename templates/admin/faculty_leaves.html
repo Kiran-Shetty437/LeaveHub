@@ -66,14 +66,14 @@
                     </td>
                     {% for lt in leave_types %}
                     <td style="text-align: center;">
-                        {% set bal_val = 0 %}
+                        {% set ns = namespace(bal_val=0) %}
                         {% for bal in t.balances %}
                             {% if bal.leave_type == lt %}
-                                {% set bal_val = bal.balance %}
+                                {% set ns.bal_val = bal.balance %}
                             {% endif %}
                         {% endfor %}
-                        <span class="status-badge" style="background: rgba(255,255,255,0.05); color: {{ 'var(--success)' if bal_val > 0 else 'var(--danger)' }}; font-weight: 800; font-size: 0.85rem;">
-                            {{ bal_val }}
+                        <span class="status-badge" style="background: rgba(255,255,255,0.05); color: {{ 'var(--success)' if ns.bal_val > 0 else 'var(--danger)' }}; font-weight: 800; font-size: 0.85rem;">
+                            {{ ns.bal_val }}
                         </span>
                     </td>
                     {% endfor %}

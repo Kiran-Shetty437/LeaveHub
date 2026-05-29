@@ -99,6 +99,40 @@ def get_effective_status(leave):
         
     return leave.status
 
+def add_notice(name, message):
+    notices_path = os.path.join(app.root_path, 'notices.json')
+    try:
+        if os.path.exists(notices_path):
+            with open(notices_path, 'r') as f:
+                notices = json.load(f)
+        else:
+            notices = []
+    except:
+        notices = []
+    notices.append({'name': name, 'message': message})
+    try:
+        with open(notices_path, 'w') as f:
+            json.dump(notices, f)
+    except: pass
+
+def pop_notices(name):
+    notices_path = os.path.join(app.root_path, 'notices.json')
+    user_notices = []
+    try:
+        if os.path.exists(notices_path):
+            with open(notices_path, 'r') as f:
+                notices = json.load(f)
+            remaining = []
+            for n in notices:
+                if n.get('name') == name:
+                    user_notices.append(n.get('message'))
+                else:
+                    remaining.append(n)
+            with open(notices_path, 'w') as f:
+                json.dump(remaining, f)
+    except: pass
+    return user_notices
+
 db = SQLAlchemy(app)
 
 # Models
@@ -352,6 +386,10 @@ def login():
                                 break
                 except Exception as e:
                     print(f"Error checking mentor status at login: {e}")
+                    
+            for msg in pop_notices(user.name):
+                flash(msg, 'info')
+                
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid credentials!', 'danger')
@@ -428,6 +466,23 @@ def dashboard():
                 for item in mentors_data:
                     if item['mentor1'] == current_teacher_name or item['mentor2'] == current_teacher_name:
                         mentored_classes.append(item['class_name'])
+                        
+            if session.get('is_hod') and mentored_classes:
+                dept_teachers = User.query.filter_by(role='Teacher', department=session.get('department')).all()
+                all_mentored_teachers = set()
+                for item in mentors_data:
+                    if item.get('mentor1'): all_mentored_teachers.add(item['mentor1'])
+                    if item.get('mentor2'): all_mentored_teachers.add(item['mentor2'])
+                
+                all_others_mentors = True
+                for t in dept_teachers:
+                    if t.name != current_teacher_name and not t.is_hod:
+                        if t.name not in all_mentored_teachers:
+                            all_others_mentors = False
+                            break
+                if not all_others_mentors:
+                    flash("Notice: Change your mentorship. As an HOD, you should not be a mentor unless all other teachers in your department are assigned.", "warning")
+
         except Exception as e:
             print(f"Error loading mentors in dashboard: {e}")
 
@@ -515,6 +570,42 @@ def dashboard():
                                is_after_9am=is_after_9am)
     
     elif role == 'Student':
+        student_class = session.get('department')
+        
+        # 1. Fetch Class Mentor
+        mentors = []
+        try:
+            mentors_path = os.path.join(app.root_path, 'mentors_data.json')
+            if os.path.exists(mentors_path):
+                with open(mentors_path, 'r') as f:
+                    for item in json.load(f):
+                        if item.get('class_name') == student_class:
+                            if item.get('mentor1'): mentors.append(item['mentor1'])
+                            if item.get('mentor2'): mentors.append(item['mentor2'])
+                            break
+        except: pass
+        mentor_name = " / ".join(mentors) if mentors else "Not Assigned"
+
+        # 2. Fetch HOD Name
+        hod_name = "Not Assigned"
+        all_hods = User.query.filter_by(role='Teacher', is_hod=True).all()
+        for hod in all_hods:
+            d_classes, _ = get_hod_allowed_subjects(hod.department)
+            if student_class in d_classes:
+                hod_name = hod.name
+                break
+
+        # 3. Fetch Subject Teachers
+        subject_teachers_map = {}
+        tt_records = TeacherTimetable.query.filter_by(class_name=student_class).all()
+        for rec in tt_records:
+            if rec.subject and rec.teacher:
+                if rec.subject not in subject_teachers_map:
+                    subject_teachers_map[rec.subject] = set()
+                subject_teachers_map[rec.subject].add(rec.teacher.name)
+        
+        subject_teachers = {sub: " / ".join(list(teachers)) for sub, teachers in subject_teachers_map.items()}
+
         all_my_leaves = LeaveRequest.query.filter_by(user_id=session['user_id']).order_by(LeaveRequest.created_at.desc()).all()
         my_leaves = []
         now_date_for_leaves = datetime.now().date()
@@ -551,7 +642,12 @@ def dashboard():
                 except:
                     pass
                     
-        return render_template('student/dashboard.html', my_leaves=my_leaves, now=now)
+        return render_template('student/dashboard.html', 
+                               my_leaves=my_leaves, 
+                               now=now,
+                               mentor_name=mentor_name,
+                               hod_name=hod_name,
+                               subject_teachers=subject_teachers)
         
     return redirect(url_for('login'))
 
@@ -587,17 +683,164 @@ def handle_connect():
     print(f"Client connected: {request.sid}")
 
 # Admin Routes
+def sync_users_json():
+    """Sync all users from the database back to users_data.json"""
+    try:
+        users = User.query.all()
+        users_list = []
+        for u in users:
+            users_list.append({
+                'name': u.name,
+                'role': u.role,
+                'username': u.username,
+                'password': u.password,
+                'department': u.department,
+                'email': u.email,
+                'phone': u.phone,
+                'dob': u.dob,
+                'roll_no': u.roll_no,
+                'is_hod': u.is_hod if u.is_hod else False
+            })
+        json_path = os.path.join(app.root_path, 'users_data.json')
+        with open(json_path, 'w') as f:
+            json.dump(users_list, f, indent=4)
+    except Exception as e:
+        print(f'Error syncing users_data.json: {e}')
+
 @app.route('/admin/teachers')
 def manage_teachers():
     if session.get('role') != 'Admin': return redirect(url_for('login'))
     teachers = User.query.filter_by(role='Teacher').all()
+    
+    mentor_names = set()
+    mentors_path = os.path.join(app.root_path, 'mentors_data.json')
+    if os.path.exists(mentors_path):
+        try:
+            with open(mentors_path, 'r') as f:
+                for item in json.load(f):
+                    mentor_names.add(item.get('mentor1'))
+                    mentor_names.add(item.get('mentor2'))
+        except: pass
+            
+    for t in teachers:
+        t.is_mentor = t.name in mentor_names
+        
     return render_template('admin/teachers.html', teachers=teachers)
+
+@app.route('/admin/set_hod/<int:teacher_id>', methods=['POST'])
+def set_hod(teacher_id):
+    if session.get('role') != 'Admin': return jsonify({'success': False}), 403
+    
+    teacher = User.query.get(teacher_id)
+    if not teacher or teacher.role != 'Teacher':
+        return jsonify({'success': False, 'message': 'Teacher not found'}), 404
+        
+    # Remove HOD status from any other teacher in this department
+    other_hods = User.query.filter_by(role='Teacher', department=teacher.department, is_hod=True).all()
+    for t in other_hods:
+        t.is_hod = False
+        add_notice(t.name, f'Notice: You have been removed from the HOD position for {teacher.department}.')
+        
+    teacher.is_hod = True
+    add_notice(teacher.name, f'Congratulations! You are now the HOD of {teacher.department}.')
+    db.session.commit()
+    sync_users_json()
+    
+    return jsonify({'success': True, 'message': f'{teacher.name} is now the HOD of {teacher.department}.'})
 
 @app.route('/admin/students')
 def manage_students():
     if session.get('role') != 'Admin': return redirect(url_for('login'))
     students = User.query.filter_by(role='Student').all()
     return render_template('admin/students.html', students=students)
+
+@app.route('/admin/add_teacher', methods=['POST'])
+def add_teacher():
+    if session.get('role') != 'Admin': return redirect(url_for('login'))
+    name = request.form.get('name')
+    username = request.form.get('username')
+    password = request.form.get('password')
+    department = request.form.get('department')
+    email = request.form.get('email')
+    phone = request.form.get('phone')
+    
+    if User.query.filter_by(username=username).first():
+        flash('Username already exists!', 'danger')
+        return redirect(url_for('manage_teachers'))
+        
+    new_user = User(name=name, role='Teacher', username=username, password=password, department=department, email=email, phone=phone)
+    db.session.add(new_user)
+    db.session.commit()
+    
+    # Initialize default balances
+    default_counts = {'Casual Leave': 15, 'Medical Leave': 10, 'Earned Leave': 5, 'Special Leave': 5}
+    for lt, count in default_counts.items():
+        db.session.add(LeaveBalance(user_id=new_user.id, leave_type=lt, balance=count))
+    db.session.commit()
+    sync_users_json()
+    
+    flash('Teacher added successfully!', 'success')
+    return redirect(url_for('manage_teachers'))
+
+@app.route('/admin/add_student', methods=['POST'])
+def add_student():
+    if session.get('role') != 'Admin': return redirect(url_for('login'))
+    name = request.form.get('name')
+    username = request.form.get('username')
+    password = request.form.get('password')
+    department = request.form.get('department')
+    roll_no = request.form.get('roll_no')
+    email = request.form.get('email')
+    phone = request.form.get('phone')
+    
+    if User.query.filter_by(username=username).first():
+        flash('Username already exists!', 'danger')
+        return redirect(url_for('manage_students'))
+        
+    new_user = User(name=name, role='Student', username=username, password=password, department=department, roll_no=roll_no, email=email, phone=phone)
+    db.session.add(new_user)
+    db.session.commit()
+    sync_users_json()
+    
+    flash('Student added successfully!', 'success')
+    return redirect(url_for('manage_students'))
+
+@app.route('/admin/upload_students_json', methods=['POST'])
+def upload_students_json():
+    if session.get('role') != 'Admin': return redirect(url_for('login'))
+    
+    file = request.files.get('json_file')
+    if not file or not file.filename.endswith('.json'):
+        flash('Please upload a valid JSON file', 'danger')
+        return redirect(url_for('manage_students'))
+        
+    try:
+        data = json.load(file)
+        added_count = 0
+        for user_data in data:
+            if user_data.get('role') == 'Student' and not User.query.filter_by(username=user_data.get('username')).first():
+                new_user = User(
+                    name=user_data.get('name'),
+                    role='Student',
+                    username=user_data.get('username'),
+                    password=user_data.get('password'),
+                    department=user_data.get('department'),
+                    email=user_data.get('email'),
+                    phone=user_data.get('phone'),
+                    dob=user_data.get('dob'),
+                    roll_no=user_data.get('roll_no')
+                )
+                db.session.add(new_user)
+                added_count += 1
+        db.session.commit()
+        sync_users_json()
+        flash(f'Successfully imported {added_count} students.', 'success')
+    except json.JSONDecodeError:
+        flash('Invalid JSON file format. Please ensure your file is a valid JSON and formatted correctly.', 'danger')
+    except Exception as e:
+        flash(f'Error processing JSON: {e}', 'danger')
+        
+    return redirect(url_for('manage_students'))
 
 @app.route('/admin/watchlist')
 def admin_watchlist():
@@ -717,8 +960,8 @@ def view_all_leaves():
                 leave.remark = (leave.remark or '') + ' [Auto-Timeout: No action taken before 9 AM on leave date]'
                 timeout_committed = True
             
-            # Visibility Rule: Show if the leave end date hasn't fully passed
-            if leave_end >= today:
+            # Visibility Rule: Show if the leave end date + 1 day hasn't fully passed
+            if leave_end + timedelta(days=1) >= today:
                 filtered_leaves.append(leave)
             elif leave.status == 'Timeout' and leave_start == today:
                 filtered_leaves.append(leave)
@@ -885,9 +1128,9 @@ def teacher_student_leaves():
                 leave.remark = (leave.remark or '') + ' [Auto-Timeout: No action taken before 9 AM on leave date]'
                 timeout_committed = True
             
-            # Visibility Rule: Show if the leave end date hasn't fully passed
-            # i.e., show on the leave end date itself, hide from the day after
-            if leave_end >= today:
+            # Visibility Rule: Show if the leave end date + 1 day hasn't fully passed
+            # i.e., show on the leave end date itself and the day after
+            if leave_end + timedelta(days=1) >= today:
                 leaves.append(leave)
             # Also show Timeout leaves on the day they timed out (leave_start == today)
             elif leave.status == 'Timeout' and leave_start == today:
@@ -1022,25 +1265,43 @@ def apply_leave():
                         flash('Same-day student leave must be applied before 8:30 AM!', 'danger')
                         return redirect(request.referrer)
                 
-                # Teacher Rule: 1-hour Gap Rule
-                elif session.get('role') == 'Teacher' and start_time_val:
-                    try:
-                        leave_dt = datetime.strptime(f"{today.strftime('%d-%m-%Y')} {start_time_val}", "%d-%m-%Y %H:%M")
-                        time_diff = leave_dt - now_dt
-                        diff_minutes = time_diff.total_seconds() / 60
-                        
-                        if diff_minutes < 60:
-                            flash('Same-day teacher leave must be applied at least 1 hour before the leave starts!', 'danger')
+                # Teacher Rules for Same-Day
+                elif session.get('role') == 'Teacher':
+                    if start_time_val:
+                        try:
+                            leave_dt = datetime.strptime(f"{today.strftime('%d-%m-%Y')} {start_time_val}", "%d-%m-%Y %H:%M")
+                            time_diff = leave_dt - now_dt
+                            diff_minutes = time_diff.total_seconds() / 60
+                            
+                            if diff_minutes < 60:
+                                flash('Same-day teacher leave must be applied at least 1 hour before the leave starts!', 'danger')
+                                return redirect(request.referrer)
+                        except ValueError:
+                            flash('Invalid time format! Please use HH:MM', 'warning')
                             return redirect(request.referrer)
-                    except ValueError:
-                        flash('Invalid time format! Please use HH:MM', 'warning')
-                        return redirect(request.referrer)
+                    else:
+                        cutoff_time = datetime.strptime("08:00:00", "%H:%M:%S").time()
+                        if now_time >= cutoff_time:
+                            flash('Same-day full day teacher leave must be applied before 8:00 AM!', 'danger')
+                            return redirect(request.referrer)
             
             # 2. Advance Limit Check (10 days)
             days_diff = (requested_start - today).days
             if days_diff > 10:
                 flash('Leave can only be applied up to 10 days in advance!', 'danger')
                 return redirect(request.referrer)
+                
+            # Time constraint for Teacher Partial Leaves (9:30 AM to 4:50 PM)
+            if session.get('role') == 'Teacher' and start_time_val:
+                try:
+                    st_time = datetime.strptime(start_time_val, "%H:%M").time()
+                    min_time = datetime.strptime("09:30:00", "%H:%M:%S").time()
+                    max_time = datetime.strptime("16:50:00", "%H:%M:%S").time()
+                    if st_time < min_time or st_time > max_time:
+                        flash('Partial day leaves can only be taken between 09:30 AM and 04:50 PM. Action Denied.', 'danger')
+                        return redirect(request.referrer)
+                except Exception as e:
+                    pass
 
             # 3. Leave Balance Check for Teachers
             if session.get('role') == 'Teacher':
@@ -1318,14 +1579,49 @@ def update_leave(leave_id, status):
     leave = LeaveRequest.query.get(leave_id)
     if not leave: return redirect(url_for('dashboard'))
     
-    # Check for expiration before allowing Approval
-    if status == 'Approved' and (get_effective_status(leave) in ["Not Approved (Expired)", "Timeout"] or leave.status == 'Timeout'):
-        flash('Action Denied: This leave request has expired/timed out and cannot be approved after the leave date.', 'danger')
-        return redirect(request.referrer)
+    now = datetime.now()
+    today = now.date()
+    try:
+        if 'to' in leave.dates.lower():
+            start_str = leave.dates.lower().split('to')[0].strip()
+        else:
+            start_str = leave.dates.strip()
+        leave_start_dt = datetime.strptime(start_str, '%d-%m-%Y').date()
+    except:
+        leave_start_dt = today
+        
+    # Student rule: Not modifiable after 9 AM on leave start date
+    if leave.role == 'Student':
+        if today > leave_start_dt or (today == leave_start_dt and now.time() >= datetime.strptime("09:00:00", "%H:%M:%S").time()):
+            flash('Action Denied: Student leaves cannot be modified after 9 AM on the leave start date.', 'danger')
+            return redirect(request.referrer)
+            
+    # Teacher rule
+    elif leave.role == 'Teacher':
+        if today > leave_start_dt:
+            flash('Action Denied: Past leaves cannot be modified.', 'danger')
+            return redirect(request.referrer)
+        if today == leave_start_dt:
+            if leave.start_time and leave.start_time != "Full Day":
+                # Partial day: modifiable until 30 mins before start_time
+                try:
+                    start_t = datetime.strptime(leave.start_time, '%H:%M').time()
+                    leave_dt = datetime.combine(today, start_t)
+                    if now >= leave_dt - timedelta(minutes=30):
+                        flash('Action Denied: Partial day leaves cannot be modified within 30 minutes of start time.', 'danger')
+                        return redirect(request.referrer)
+                except:
+                    pass
+            else:
+                # Full day: modifiable until 9 AM
+                if now.time() >= datetime.strptime("09:00:00", "%H:%M:%S").time():
+                    flash('Action Denied: Full day teacher leaves cannot be modified after 9 AM on the leave date.', 'danger')
+                    return redirect(request.referrer)
 
     current_role = session.get('role')
     
     remark = request.args.get('remark')
+    old_status = leave.status
     
     # Admin can approve/reject Teacher leaves OR Student leaves forwarded to them
     if current_role == 'Admin':
@@ -1340,8 +1636,9 @@ def update_leave(leave_id, status):
     elif current_role == 'Teacher' and leave.role == 'Student':
         leave.status = status
         if remark: leave.remark = remark
+        
     # 3. Deduction Logic for Teachers only upon Approval
-    if status == 'Approved' and leave.role == 'Teacher':
+    if leave.role == 'Teacher':
         bal = LeaveBalance.query.filter_by(user_id=leave.user_id, leave_type=leave.leave_type).first()
         if bal:
             # Calculate duration
@@ -1354,12 +1651,15 @@ def update_leave(leave_id, status):
                     duration = (d2 - d1).days + 1
             except: duration = 1
             
-            # Final Safety Check
-            if bal.balance >= duration:
-                bal.balance -= duration
-                print(f"Deducted {duration} from {leave.user.name}'s {leave.leave_type} balance.")
-            else:
-                flash(f"Warning: Teacher {leave.user.name} has insufficient balance ({bal.balance}) for this {duration}-day request.", "warning")
+            if status == 'Approved' and old_status != 'Approved':
+                if bal.balance >= duration:
+                    bal.balance -= duration
+                    print(f"Deducted {duration} from {leave.user.name}'s {leave.leave_type} balance.")
+                else:
+                    flash(f"Warning: Teacher {leave.user.name} has insufficient balance ({bal.balance}) for this {duration}-day request.", "warning")
+            elif status in ['Rejected', 'Pending'] and old_status == 'Approved':
+                bal.balance += duration
+                print(f"Refunded {duration} to {leave.user.name}'s {leave.leave_type} balance.")
 
     db.session.commit()
     
@@ -1901,6 +2201,31 @@ def hod_assign_subjects():
             }
         classes_timetable[c_name] = tt
 
+    # Load mentor data for department classes
+    mentors_path = os.path.join(app.root_path, 'mentors_data.json')
+    mentors_data = []
+    if os.path.exists(mentors_path):
+        try:
+            with open(mentors_path, 'r') as f:
+                mentors_data = json.load(f)
+        except: pass
+    
+    # Filter to only dept classes
+    dept_mentors = {}
+    for item in mentors_data:
+        if item.get('class_name') in dept_classes:
+            dept_mentors[item['class_name']] = {
+                'mentor1': item.get('mentor1', ''),
+                'mentor2': item.get('mentor2', '')
+            }
+    # Ensure all dept classes have an entry
+    for c in dept_classes:
+        if c not in dept_mentors:
+            dept_mentors[c] = {'mentor1': '', 'mentor2': ''}
+    
+    # Build teacher name list for dropdown
+    dept_teacher_names = [t.name for t in dept_teachers]
+
     return render_template('teacher/hod_assign.html',
                            teachers_data=teachers_data,
                            all_subjects=all_subjects,
@@ -1909,7 +2234,131 @@ def hod_assign_subjects():
                            periods=periods,
                            department=dept,
                            dept_classes=dept_classes,
-                           classes_timetable=classes_timetable)
+                           classes_timetable=classes_timetable,
+                           dept_mentors=dept_mentors,
+                           dept_teacher_names=dept_teacher_names)
+
+@app.route('/api/hod_update_mentor', methods=['POST'])
+def hod_update_mentor():
+    if session.get('role') != 'Teacher': return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    user = User.query.get(session['user_id'])
+    if not user or not user.is_hod: return jsonify({'success': False, 'message': 'HOD access required'}), 403
+    
+    data = request.json
+    class_name = data.get('class_name')
+    mentor1 = data.get('mentor1', '').strip()
+    mentor2 = data.get('mentor2', '').strip()
+    
+    if not class_name:
+        return jsonify({'success': False, 'message': 'Class name is required'}), 400
+    
+    # Verify this class belongs to HOD's department
+    dept = user.department
+    dept_classes, _ = get_hod_allowed_subjects(dept)
+    if class_name not in dept_classes:
+        return jsonify({'success': False, 'message': 'This class is not in your department'}), 403
+    
+    # Validate that both mentors are teachers in this department
+    dept_teachers = User.query.filter_by(role='Teacher', department=dept).all()
+    dept_teacher_names = [t.name for t in dept_teachers]
+    
+    if mentor1 and mentor1 not in dept_teacher_names:
+        return jsonify({'success': False, 'message': f'{mentor1} is not a teacher in your department'}), 400
+    if mentor2 and mentor2 not in dept_teacher_names:
+        return jsonify({'success': False, 'message': f'{mentor2} is not a teacher in your department'}), 400
+    
+    if mentor1 and mentor2 and mentor1 == mentor2:
+        return jsonify({'success': False, 'message': 'Mentor 1 and Mentor 2 cannot be the same person'}), 400
+    
+    # Load current mentors data
+    mentors_path = os.path.join(app.root_path, 'mentors_data.json')
+    mentors_data = []
+    if os.path.exists(mentors_path):
+        try:
+            with open(mentors_path, 'r') as f:
+                mentors_data = json.load(f)
+        except: pass
+    
+    # Rule: One teacher can only mentor ONE class
+    # Build a map of teacher -> class they currently mentor (excluding the current class being edited)
+    teacher_to_class = {}
+    for item in mentors_data:
+        if item.get('class_name') != class_name:
+            if item.get('mentor1'):
+                teacher_to_class[item['mentor1']] = item['class_name']
+            if item.get('mentor2'):
+                teacher_to_class[item['mentor2']] = item['class_name']
+    
+    if mentor1 and mentor1 in teacher_to_class:
+        return jsonify({'success': False, 'message': f'{mentor1} is already a mentor for {teacher_to_class[mentor1]}. A teacher can only mentor one class.'}), 400
+    if mentor2 and mentor2 in teacher_to_class:
+        return jsonify({'success': False, 'message': f'{mentor2} is already a mentor for {teacher_to_class[mentor2]}. A teacher can only mentor one class.'}), 400
+    
+    # Rule: HOD should NOT get mentorship unless all other non-HOD teachers already have a mentorship
+    hod_teacher = None
+    non_hod_teachers = []
+    for t in dept_teachers:
+        if t.is_hod:
+            hod_teacher = t
+        else:
+            non_hod_teachers.append(t)
+    
+    # Check if mentor1 or mentor2 is the HOD
+    for mentor_name in [mentor1, mentor2]:
+        if mentor_name and hod_teacher and mentor_name == hod_teacher.name:
+            # Check if all non-HOD teachers already have mentorship
+            # Include existing assignments + the OTHER mentor being set in this request
+            all_mentored = set(teacher_to_class.keys())
+            # Also count the other mentor in this same request
+            other_mentor = mentor2 if mentor_name == mentor1 else mentor1
+            if other_mentor:
+                all_mentored.add(other_mentor)
+            
+            unassigned = [t.name for t in non_hod_teachers if t.name not in all_mentored]
+            if unassigned:
+                return jsonify({'success': False, 'message': f'HOD can only be assigned as mentor when all other teachers have mentorship. Unassigned teachers: {", ".join(unassigned)}'}), 400
+    
+    # Find and update or create the entry
+    found = False
+    old_mentor1 = None
+    old_mentor2 = None
+    for item in mentors_data:
+        if item.get('class_name') == class_name:
+            old_mentor1 = item.get('mentor1')
+            old_mentor2 = item.get('mentor2')
+            item['mentor1'] = mentor1
+            item['mentor2'] = mentor2
+            found = True
+            break
+            
+    if old_mentor1 and old_mentor1 != mentor1 and old_mentor1 != mentor2:
+        add_notice(old_mentor1, f'Notice: You have been removed as mentor for class {class_name}.')
+    if old_mentor2 and old_mentor2 != mentor1 and old_mentor2 != mentor2:
+        add_notice(old_mentor2, f'Notice: You have been removed as mentor for class {class_name}.')
+        
+    if mentor1 and mentor1 != old_mentor1 and mentor1 != old_mentor2:
+        if mentor1 not in teacher_to_class:
+            add_notice(mentor1, f'Congratulations! You have been assigned as a mentor for class {class_name} for the first time.')
+        else:
+            add_notice(mentor1, f'Notice: You have been assigned as a mentor for class {class_name}.')
+            
+    if mentor2 and mentor2 != old_mentor1 and mentor2 != old_mentor2:
+        if mentor2 not in teacher_to_class:
+            add_notice(mentor2, f'Congratulations! You have been assigned as a mentor for class {class_name} for the first time.')
+        else:
+            add_notice(mentor2, f'Notice: You have been assigned as a mentor for class {class_name}.')
+    
+    if not found:
+        mentors_data.append({
+            'class_name': class_name,
+            'mentor1': mentor1,
+            'mentor2': mentor2
+        })
+    
+    with open(mentors_path, 'w') as f:
+        json.dump(mentors_data, f, indent=4)
+    
+    return jsonify({'success': True, 'message': f'Mentors updated for {class_name}'})
 
 @app.route('/api/hod_assign_teacher_subject', methods=['POST'])
 def hod_assign_teacher_subject():
