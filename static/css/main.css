@@ -227,6 +227,12 @@ div[style*="color: var(--text-muted)"] {
     border-color: rgba(239, 68, 68, 0.2) !important;
 }
 
+.status-badge.timeout, .status-badge[class*="timeout"] { 
+    background: rgba(239, 68, 68, 0.1) !important;
+    color: var(--danger) !important; 
+    border-color: rgba(239, 68, 68, 0.2) !important;
+}
+
 /* General Button Styles if badge is used as button */
 button.status-badge:hover {
     transform: translateY(-2px);

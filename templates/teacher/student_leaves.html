@@ -85,12 +85,12 @@
                             </button>
                         </div>
                     </div>
-                    {% elif effective == 'Not Approved (Expired)' %}
+                    {% elif effective == 'Not Approved (Expired)' or effective == 'Timeout' %}
                     <div style="font-size: 0.65rem; font-weight: 800; color: var(--danger); opacity: 0.7;">TIMED OUT / EXPIRED</div>
                     {% elif leave.status == 'Forwarded to Admin' %}
                     <div style="font-size: 0.65rem; font-weight: 700; color: var(--accent);">ESCALATED TO ADMIN</div>
                     {% else %}
-                    <div style="color: var(--text-muted); font-size: 0.65rem; font-weight: 800; opacity: 0.5;">DECIDED</div>
+                    <div style="color: var(--text-muted); font-size: 0.65rem; font-weight: 800; opacity: 0.5;">DECIDED ({{ effective|upper }})</div>
                     {% endif %}
                 </td>
             </tr>

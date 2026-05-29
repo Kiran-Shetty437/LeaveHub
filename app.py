@@ -51,26 +51,27 @@ def send_approval_email(target_email, name, role, dates):
     except Exception as e:
         print(f"Error sending email: {e}")
 
-def is_absent_today(date_str):
+def is_absent_today(date_str, target_date=None):
     """
-    Checks if today's date falls within the provided date_str.
+    Checks if target_date falls within the provided date_str.
     Expects formats like 'DD-MM-YYYY' or 'DD-MM-YYYY to DD-MM-YYYY'
     """
     from datetime import date
-    today = date.today()
+    if target_date is None:
+        target_date = date.today()
     
     try:
         if 'to' in date_str.lower():
             start_str, end_str = date_str.lower().split('to')
             start_date = datetime.strptime(start_str.strip(), '%d-%m-%Y').date()
             end_date = datetime.strptime(end_str.strip(), '%d-%m-%Y').date()
-            return start_date <= today <= end_date
+            return start_date <= target_date <= end_date
         else:
             single_date = datetime.strptime(date_str.strip(), '%d-%m-%Y').date()
-            return single_date == today
+            return single_date == target_date
     except:
         # Fallback: simple string inclusion check if format is non-standard
-        today_str = today.strftime('%d-%m-%Y')
+        today_str = target_date.strftime('%d-%m-%Y')
         return today_str in date_str
 
 def get_effective_status(leave):
@@ -336,6 +337,21 @@ def login():
             session['department'] = user.department
             session['is_hod'] = user.is_hod or False
             session['roll_no'] = user.roll_no
+            
+            # Determine if this teacher is a mentor
+            session['is_mentor'] = False
+            if user.role == 'Teacher':
+                try:
+                    mentors_path = os.path.join(app.root_path, 'mentors_data.json')
+                    if os.path.exists(mentors_path):
+                        with open(mentors_path, 'r') as f:
+                            mentors_data = json.load(f)
+                        for item in mentors_data:
+                            if item['mentor1'] == user.name or item['mentor2'] == user.name:
+                                session['is_mentor'] = True
+                                break
+                except Exception as e:
+                    print(f"Error checking mentor status at login: {e}")
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid credentials!', 'danger')
@@ -356,6 +372,21 @@ def dashboard():
         session['name'] = user.name
         session['is_hod'] = user.is_hod or False
         session['roll_no'] = user.roll_no
+        
+        # Refresh is_mentor status
+        if user.role == 'Teacher':
+            session['is_mentor'] = False
+            try:
+                mentors_path = os.path.join(app.root_path, 'mentors_data.json')
+                if os.path.exists(mentors_path):
+                    with open(mentors_path, 'r') as f:
+                        mentors_data = json.load(f)
+                    for item in mentors_data:
+                        if item['mentor1'] == user.name or item['mentor2'] == user.name:
+                            session['is_mentor'] = True
+                            break
+            except Exception as e:
+                print(f"Error refreshing mentor status: {e}")
     
     if role == 'Admin':
         teacher_count = User.query.filter_by(role='Teacher').count()
@@ -422,32 +453,26 @@ def dashboard():
                 except:
                     pending_student_leaves += 1
                                 
-        # Recent Student Absences (Current + 3 days Post-Leave)
+        # 9 AM Shift Rule: If it's before 9 AM, use yesterday's date.
+        now_time_for_shift = datetime.now()
+        if now_time_for_shift.time() < datetime.strptime("09:00:00", "%H:%M:%S").time():
+            effective_date = (now_time_for_shift - timedelta(days=1)).date()
+        else:
+            effective_date = now_time_for_shift.date()
+
+        # Today's Student Absences (Mentored Classes, effective date)
         active_student_absences = []
         if mentored_classes:
             all_approved = LeaveRequest.query.join(User, LeaveRequest.user_id == User.id)\
                             .filter(LeaveRequest.status == 'Approved', LeaveRequest.role == 'Student')\
                             .filter(User.department.in_(mentored_classes)).all()
             
-            now_date = datetime.now().date()
-            
             for leave in all_approved:
-                # Parse last date of leave
-                try:
-                    if ' to ' in leave.dates:
-                        end_str = leave.dates.split(' to ')[1].strip()
-                    else:
-                        end_str = leave.dates.strip()
-                    
-                    end_dt = datetime.strptime(end_str, '%d-%m-%Y').date()
-                    # Rule: Show until 3 days after last date
-                    if now_date <= (end_dt + timedelta(days=3)):
-                        active_student_absences.append(leave)
-                except:
-                    continue
+                if is_absent_today(leave.dates, effective_date):
+                    active_student_absences.append(leave)
 
-        # Today's Absentee List for Teacher's Classes
-        today_day = datetime.now().strftime('%A')
+        # Today's Absentee List for Teacher's Classes (effective date)
+        today_day = effective_date.strftime('%A')
         today_classes_objs = TeacherTimetable.query.filter_by(teacher_id=session['user_id'], day=today_day).all()
         today_classes = list(set([tc.class_name for tc in today_classes_objs if tc.class_name]))
         
@@ -458,7 +483,7 @@ def dashboard():
                 .filter(User.department.in_(today_classes)).all()
             
             for leave in all_approved_today:
-                if is_absent_today(leave.dates):
+                if is_absent_today(leave.dates, effective_date):
                     cls = leave.user.department
                     if cls not in today_class_absentees:
                         today_class_absentees[cls] = []
@@ -659,31 +684,52 @@ def admin_watchlist():
 @app.route('/admin/leaves')
 def view_all_leaves():
     if session.get('role') != 'Admin': return redirect(url_for('login'))
-    # Admin views: All Teacher leaves and ONLY Forwarded Student leaves (for action)
+    # Admin views: All Teacher leaves and Forwarded/Timeout Student leaves
     all_leaves = LeaveRequest.query.filter(
         (LeaveRequest.role == 'Teacher') | 
-        (LeaveRequest.status == 'Forwarded to Admin')
+        (LeaveRequest.status == 'Forwarded to Admin') |
+        (LeaveRequest.status == 'Timeout')
     ).order_by(LeaveRequest.created_at.desc()).all()
     
     filtered_leaves = []
-    yesterday = (datetime.now() - timedelta(days=1)).date()
-    end_date = (datetime.now() + timedelta(days=10)).date()
+    now = datetime.now()
+    today = now.date()
+    cutoff_time = datetime.strptime("09:00:00", "%H:%M:%S").time()
+    timeout_committed = False
     
     for leave in all_leaves:
         try:
-            if 'to' in leave.dates.lower():
-                start_str = leave.dates.lower().split('to')[0].strip()
+            dates_lower = leave.dates.lower()
+            if 'to' in dates_lower:
+                start_str = dates_lower.split('to')[0].strip()
+                end_str = dates_lower.split('to')[1].strip()
             else:
-                start_str = leave.dates.strip()
+                start_str = dates_lower.strip()
+                end_str = start_str
             
             leave_start = datetime.strptime(start_str, '%d-%m-%Y').date()
-            if yesterday <= leave_start <= end_date:
+            leave_end = datetime.strptime(end_str, '%d-%m-%Y').date()
+            
+            # Auto-Timeout: If still Pending/Forwarded and it's past 9 AM on the leave start date
+            if leave.status in ['Pending', 'Forwarded to Admin'] and \
+               (today > leave_start or (today == leave_start and now.time() >= cutoff_time)):
+                leave.status = 'Timeout'
+                leave.remark = (leave.remark or '') + ' [Auto-Timeout: No action taken before 9 AM on leave date]'
+                timeout_committed = True
+            
+            # Visibility Rule: Show if the leave end date hasn't fully passed
+            if leave_end >= today:
+                filtered_leaves.append(leave)
+            elif leave.status == 'Timeout' and leave_start == today:
                 filtered_leaves.append(leave)
         except:
             # If dates can't be parsed, include to be safe
             filtered_leaves.append(leave)
+    
+    if timeout_committed:
+        db.session.commit()
             
-    info_message = f"Showing requests for leave dates between {yesterday.strftime('%d-%m-%Y')} and {end_date.strftime('%d-%m-%Y')}."
+    info_message = f"Showing active leave requests as of {today.strftime('%d-%m-%Y')}. Leaves are automatically timed out after 9 AM on the leave date."
     
     return render_template('admin/leaves.html', leaves=filtered_leaves, info_message=info_message)
 
@@ -781,6 +827,11 @@ def delete_user(user_id):
 def teacher_student_leaves():
     if session.get('role') != 'Teacher': return redirect(url_for('login'))
     
+    # Only mentors can access the approvals page
+    if not session.get('is_mentor'):
+        flash('Approvals are only available for mentors.', 'warning')
+        return redirect(url_for('dashboard'))
+    
     current_teacher_name = session.get('name')
     
     # Load mentors data to find which class this teacher mentors
@@ -802,35 +853,62 @@ def teacher_student_leaves():
     if not mentored_classes:
         return render_template('teacher/student_leaves.html', leaves=[], mentored_classes=[])
 
-    # Filter leaves: Student requests where student department is in mentored_classes
+    # Fetch ALL student leaves for mentored classes (any actionable status)
     all_student_leaves = LeaveRequest.query.join(User, LeaveRequest.user_id == User.id)\
                                .filter(User.role == 'Student')\
-                               .filter(LeaveRequest.status == 'Pending')\
-                               .filter(User.department.in_(mentored_classes)).all()
+                               .filter(LeaveRequest.status.in_(['Pending', 'Approved', 'Rejected', 'Forwarded to Admin', 'Timeout']))\
+                               .filter(User.department.in_(mentored_classes))\
+                               .order_by(LeaveRequest.created_at.desc()).all()
                                
     leaves = []
-    yesterday = (datetime.now() - timedelta(days=1)).date()
-    end_date = (datetime.now() + timedelta(days=10)).date()
+    now = datetime.now()
+    today = now.date()
+    cutoff_time = datetime.strptime("09:00:00", "%H:%M:%S").time()
+    timeout_committed = False
     
     for leave in all_student_leaves:
         try:
-            if 'to' in leave.dates.lower():
-                start_str = leave.dates.lower().split('to')[0].strip()
+            dates_lower = leave.dates.lower()
+            if 'to' in dates_lower:
+                start_str = dates_lower.split('to')[0].strip()
+                end_str = dates_lower.split('to')[1].strip()
             else:
-                start_str = leave.dates.strip()
+                start_str = dates_lower.strip()
+                end_str = start_str
             
             leave_start = datetime.strptime(start_str, '%d-%m-%Y').date()
-            if yesterday <= leave_start <= end_date:
+            leave_end = datetime.strptime(end_str, '%d-%m-%Y').date()
+            
+            # Auto-Timeout: If still Pending and it's past 9 AM on the leave start date
+            if leave.status == 'Pending' and (today > leave_start or (today == leave_start and now.time() >= cutoff_time)):
+                leave.status = 'Timeout'
+                leave.remark = (leave.remark or '') + ' [Auto-Timeout: No action taken before 9 AM on leave date]'
+                timeout_committed = True
+            
+            # Visibility Rule: Show if the leave end date hasn't fully passed
+            # i.e., show on the leave end date itself, hide from the day after
+            if leave_end >= today:
+                leaves.append(leave)
+            # Also show Timeout leaves on the day they timed out (leave_start == today)
+            elif leave.status == 'Timeout' and leave_start == today:
                 leaves.append(leave)
         except:
             # If dates can't be parsed, include it to be safe so it doesn't get lost
             leaves.append(leave)
+    
+    if timeout_committed:
+        db.session.commit()
                                
     return render_template('teacher/student_leaves.html', leaves=leaves, mentored_classes=mentored_classes)
 
 @app.route('/teacher/monthly_reports')
 def monthly_reports():
     if session.get('role') != 'Teacher': return redirect(url_for('login'))
+    
+    # Only mentors can access class analytics
+    if not session.get('is_mentor'):
+        flash('Class Analytics is only available for mentors.', 'warning')
+        return redirect(url_for('dashboard'))
     
     current_teacher_name = session.get('name')
     mentors_path = os.path.join(app.root_path, 'mentors_data.json')
@@ -1079,6 +1157,89 @@ def get_student_attendance(student_id):
         
     return jsonify(data)
 
+@app.route('/api/teacher/absentees')
+def api_teacher_absentees():
+    if session.get('role') != 'Teacher':
+        return jsonify({'error': 'Unauthorized', 'success': False}), 401
+        
+    date_str = request.args.get('date')
+    if not date_str:
+        return jsonify({'error': 'Date is required', 'success': False}), 400
+        
+    try:
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD', 'success': False}), 400
+        
+    teacher_id = session['user_id']
+    
+    # 1. Find the day name for the selected date
+    day_name = target_date.strftime('%A')
+    
+    # 2. Get teacher's classes and subjects on this day
+    timetable_entries = TeacherTimetable.query.filter_by(teacher_id=teacher_id, day=day_name).all()
+    
+    class_subject_map = {} # {class_name: set(subjects)}
+    for entry in timetable_entries:
+        if entry.class_name and entry.subject:
+            if entry.class_name not in class_subject_map:
+                class_subject_map[entry.class_name] = set()
+            class_subject_map[entry.class_name].add(entry.subject)
+            
+    if not class_subject_map:
+        return jsonify({
+            'success': True,
+            'date': date_str,
+            'absentees': [],
+            'classes': []
+        })
+        
+    # 3. Get all students enrolled in these classes
+    students = User.query.filter(User.role == 'Student', User.department.in_(class_subject_map.keys())).all()
+    student_ids = [s.id for s in students]
+    
+    if not student_ids:
+        return jsonify({
+            'success': True,
+            'date': date_str,
+            'absentees': [],
+            'classes': list(class_subject_map.keys())
+        })
+        
+    # 4. Get all approved student leave requests
+    approved_leaves = LeaveRequest.query.filter(
+        LeaveRequest.role == 'Student',
+        LeaveRequest.status == 'Approved',
+        LeaveRequest.user_id.in_(student_ids)
+    ).all()
+    
+    absentees_list = []
+    for leave in approved_leaves:
+        if is_absent_today(leave.dates, target_date):
+            student_class = leave.user.department
+            # Subjects this teacher teaches to this class on this day
+            missed_subjects = list(class_subject_map.get(student_class, []))
+            for sub in missed_subjects:
+                absentees_list.append({
+                    'student_name': leave.user.name,
+                    'roll_no': leave.user.roll_no or 'N/A',
+                    'class_name': student_class,
+                    'subject_missed': sub,
+                    'reason': leave.reason
+                })
+                
+    return jsonify({
+        'success': True,
+        'date': date_str,
+        'absentees': absentees_list,
+        'classes': sorted(list(class_subject_map.keys()))
+    })
+
+@app.route('/teacher/search_absentees')
+def teacher_search_absentees():
+    if session.get('role') != 'Teacher': return redirect(url_for('login'))
+    return render_template('teacher/search_absentees.html')
+
 @app.route('/teacher/attendance')
 def teacher_attendance_list():
     if session.get('role') != 'Teacher': return redirect(url_for('login'))
@@ -1158,8 +1319,8 @@ def update_leave(leave_id, status):
     if not leave: return redirect(url_for('dashboard'))
     
     # Check for expiration before allowing Approval
-    if status == 'Approved' and get_effective_status(leave) == "Not Approved (Expired)":
-        flash('Action Denied: This leave request has expired and cannot be approved after the leave date.', 'danger')
+    if status == 'Approved' and (get_effective_status(leave) in ["Not Approved (Expired)", "Timeout"] or leave.status == 'Timeout'):
+        flash('Action Denied: This leave request has expired/timed out and cannot be approved after the leave date.', 'danger')
         return redirect(request.referrer)
 
     current_role = session.get('role')
@@ -1290,6 +1451,8 @@ def teacher_timetable():
     if session.get('role') != 'Teacher': return redirect(url_for('login'))
     
     teacher_id = session.get('user_id')
+    user = User.query.get(teacher_id)
+    dept = user.department
     timetable_records = TeacherTimetable.query.filter_by(teacher_id=teacher_id).all()
     
     # Organize into a dict for easy access: {day: {period: subject}}
@@ -1337,6 +1500,39 @@ def teacher_timetable():
                 assigned_class_subject_map[c_name] = sub_name
                 break
     
+    # 1. Get Department Classes & Timetables
+    dept_classes, _ = get_hod_allowed_subjects(dept)
+    classes_timetable = {}
+    for c_name in dept_classes:
+        records = TeacherTimetable.query.filter_by(class_name=c_name).all()
+        tt = {}
+        for rec in records:
+            if rec.day not in tt: tt[rec.day] = {}
+            tt[rec.day][rec.period] = {
+                'subject': rec.subject,
+                'teacher': rec.teacher.name if rec.teacher else 'Unknown'
+            }
+        classes_timetable[c_name] = tt
+
+    # 2. Get Department Teachers & Timetables
+    dept_teachers_objs = User.query.filter_by(role='Teacher', department=dept).all()
+    dept_teachers = []
+    for t in dept_teachers_objs:
+        records = TeacherTimetable.query.filter_by(teacher_id=t.id).all()
+        tt = {}
+        for rec in records:
+            if rec.day not in tt: tt[rec.day] = {}
+            tt[rec.day][rec.period] = {
+                'subject': rec.subject,
+                'class_name': rec.class_name
+            }
+        dept_teachers.append({
+            'id': t.id,
+            'name': t.name,
+            'is_hod': t.is_hod,
+            'timetable': tt
+        })
+
     return render_template('teacher/timetable.html', 
                            timetable_data=timetable_data, 
                            days=days, 
@@ -1346,7 +1542,11 @@ def teacher_timetable():
                            mentor_class=mentor_class,
                            assigned_subjects=assigned_subjects_list,
                            assigned_subject_class_map=assigned_subject_class_map,
-                           assigned_class_subject_map=assigned_class_subject_map)
+                           assigned_class_subject_map=assigned_class_subject_map,
+                           dept_classes=dept_classes,
+                           classes_timetable=classes_timetable,
+                           dept_teachers=dept_teachers,
+                           department=dept)
 
 @app.route('/admin/subjects', methods=['GET', 'POST'])
 def manage_subjects():

@@ -94,7 +94,7 @@
                     </span>
                 </td>
                 <td id="actions-cell-{{ leave.id }}">
-                    {% if effective != 'Approved' and effective != 'Rejected' and effective != 'Not Approved (Expired)' and (leave.role == 'Teacher' or leave.status == 'Forwarded to Admin') %}
+                    {% if effective != 'Approved' and effective != 'Rejected' and effective != 'Not Approved (Expired)' and effective != 'Timeout' and (leave.role == 'Teacher' or leave.status == 'Forwarded to Admin') %}
                     <div style="display: flex; flex-direction: column; gap: 8px;">
                         <input type="text" id="remark-{{ leave.id }}" placeholder="Add remark..." 
                                style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 4px 8px; font-size: 0.75rem; color: white; width: 100%;">
@@ -107,10 +107,10 @@
                             </button>
                         </div>
                     </div>
-                    {% elif effective == 'Not Approved (Expired)' %}
+                    {% elif effective == 'Not Approved (Expired)' or effective == 'Timeout' %}
                     <div style="font-size: 0.65rem; font-weight: 800; color: var(--danger); opacity: 0.7;">TIMED OUT</div>
                     {% else %}
-                    <div style="color: var(--text-muted); font-size: 0.7rem; font-weight: 700; opacity: 0.5;">ARCHIVED</div>
+                    <div style="color: var(--text-muted); font-size: 0.7rem; font-weight: 700; opacity: 0.5;">ARCHIVED ({{ effective|upper }})</div>
                     {% endif %}
                 </td>
             </tr>

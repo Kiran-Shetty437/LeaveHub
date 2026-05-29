@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Search Absentees | LeaveHub{% endblock %}
+{% block page_title %}Search Absentees{% endblock %}
+
+{% block content %}
+<!-- Search Absentees by Date Section -->
+<div class="glass-card table-box animate-fade-in" style="margin-bottom: 3rem; background: rgba(99, 102, 241, 0.02); border: 1px solid rgba(255,255,255,0.08);">
+    <div style="padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">
+                <i class="fas fa-search" style="color: var(--primary); margin-right: 8px;"></i> Search Absentees by Date
+            </h3>
+            <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 4px;">Search and filter student absentees in your classes for any specific date.</p>
+        </div>
+        
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label style="display: block; font-size: 0.65rem; color: var(--text-muted); font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">Select Date</label>
+                <input type="date" id="absentee-search-date" class="form-control" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; outline: none; width: 150px;">
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.65rem; color: var(--text-muted); font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">Filter Class</label>
+                <select id="absentee-class-filter" class="form-control" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; outline: none; width: 140px;">
+                    <option value="">All Classes</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div style="padding: 1.5rem;">
+        <div id="search-loading" style="display: none; text-align: center; padding: 2rem;">
+            <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary);"></i>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 10px;">Searching database...</p>
+        </div>
+        
+        <div id="search-no-results" style="display: none; text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.9rem;">
+            <i class="fas fa-calendar-check" style="display: block; font-size: 2.5rem; margin-bottom: 1rem; color: var(--success); opacity: 0.5;"></i>
+            No absentees found for the selected date and filters.
+        </div>
+
+        <div id="search-table-container" style="display: none; overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); text-align: left;">
+                        <th style="padding: 12px; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 800;">Student Name</th>
+                        <th style="padding: 12px; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 800;">Roll Number</th>
+                        <th style="padding: 12px; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 800;">Class</th>
+                        <th style="padding: 12px; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 800;">Subject Missed</th>
+                        <th style="padding: 12px; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 800;">Reason</th>
+                    </tr>
+                </thead>
+                <tbody id="search-results-tbody">
+                    <!-- Dynamic rows go here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let absenteeData = [];
+
+    async function fetchAbsentees() {
+        const dateVal = document.getElementById('absentee-search-date').value;
+        if (!dateVal) return;
+
+        const loadingEl = document.getElementById('search-loading');
+        const noResultsEl = document.getElementById('search-no-results');
+        const tableContainerEl = document.getElementById('search-table-container');
+        
+        loadingEl.style.display = 'block';
+        noResultsEl.style.display = 'none';
+        tableContainerEl.style.display = 'none';
+
+        try {
+            const response = await fetch(`/api/teacher/absentees?date=${dateVal}`);
+            const data = await response.json();
+            
+            loadingEl.style.display = 'none';
+            
+            if (data.success) {
+                absenteeData = data.absentees;
+                
+                // Update class filter choices
+                const filterEl = document.getElementById('absentee-class-filter');
+                const currentSelected = filterEl.value;
+                filterEl.innerHTML = '<option value="">All Classes</option>';
+                data.classes.forEach(cls => {
+                    const option = document.createElement('option');
+                    option.value = cls;
+                    option.textContent = cls;
+                    if (cls === currentSelected) option.selected = true;
+                    filterEl.appendChild(option);
+                });
+
+                renderAbsenteeRows();
+            } else {
+                noResultsEl.style.display = 'block';
+            }
+        } catch (e) {
+            loadingEl.style.display = 'none';
+            noResultsEl.style.display = 'block';
+            console.error(e);
+        }
+    }
+
+    function renderAbsenteeRows() {
+        const tbody = document.getElementById('search-results-tbody');
+        const classFilter = document.getElementById('absentee-class-filter').value;
+        const noResultsEl = document.getElementById('search-no-results');
+        const tableContainerEl = document.getElementById('search-table-container');
+
+        tbody.innerHTML = '';
+        
+        const filtered = absenteeData.filter(item => {
+            if (classFilter && item.class_name !== classFilter) return false;
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            noResultsEl.style.display = 'block';
+            tableContainerEl.style.display = 'none';
+            return;
+        }
+
+        noResultsEl.style.display = 'none';
+        tableContainerEl.style.display = 'block';
+
+        filtered.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
+            tr.innerHTML = `
+                <td style="padding: 12px; font-weight: 700; color: white;">${item.student_name}</td>
+                <td style="padding: 12px; color: var(--text-muted); font-size: 0.85rem;">${item.roll_no}</td>
+                <td style="padding: 12px; color: var(--primary); font-weight: 700; font-size: 0.85rem;">${item.class_name}</td>
+                <td style="padding: 12px; color: white; font-weight: 600; font-size: 0.85rem;"><span class="status-badge" style="background: rgba(99, 102, 241, 0.15); color: white; padding: 4px 8px; border-radius: 4px;">${item.subject_missed}</span></td>
+                <td style="padding: 12px; color: var(--text-muted); font-size: 0.8rem; font-style: italic; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${item.reason}">${item.reason}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const dateInput = document.getElementById('absentee-search-date');
+        if (dateInput) {
+            // Set default date to local today
+            const today = new Date();
+            const offset = today.getTimezoneOffset();
+            const localToday = new Date(today.getTime() - (offset*60*1000));
+            dateInput.value = localToday.toISOString().split('T')[0];
+            
+            dateInput.addEventListener('change', fetchAbsentees);
+            document.getElementById('absentee-class-filter').addEventListener('change', renderAbsenteeRows);
+            
+            // Initial fetch
+            fetchAbsentees();
+        }
+    });
+</script>
+{% endblock %}
