@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Student Dashboard | LeaveHub{% endblock %}
+{% block title %}Student Dashboard | CampusCore{% endblock %}
 {% block page_title %}Student Overview{% endblock %}
 
 {% block content %}
 <!-- Student Header -->
-<div class="glass-card animate-fade-in" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05)); min-height: 160px; display: flex; align-items: center; margin-bottom: 2rem; position: relative; overflow: hidden; border-left: 4px solid var(--primary);">
-    <div style="position: absolute; right: 5%; top: -20px; font-size: 10rem; color: rgba(255,255,255,0.03); transform: rotate(-15deg);">
+<div class="glass-card animate-fade-in" style="background: var(--primary-light); min-height: 160px; display: flex; align-items: center; margin-bottom: 2rem; position: relative; overflow: hidden; border-left: 4px solid var(--primary); border-color: var(--border-glass);">
+    <div style="position: absolute; right: 5%; top: -20px; font-size: 10rem; color: var(--primary); opacity: 0.05; transform: rotate(-15deg);">
         <i class="fas fa-user-graduate"></i>
     </div>
     <div style="padding-left: 2rem;">
-        <h2 style="font-size: 2.2rem; font-weight: 800; color: white; letter-spacing: -1px; margin-bottom: 5px;">Welcome back, {{ session.get('name') }}</h2>
-        <p style="color: var(--text-muted); font-size: 1.1rem;">
-            Class: <span style="color: white; font-weight: 700;">{{ session.get('department') }}</span> • Roll No: <span style="color: var(--primary); font-weight: 800;">{{ session.get('roll_no', 'N/A') }}</span>
+        <h2 style="font-size: 2.2rem; font-weight: 800; color: var(--primary); letter-spacing: -1px; margin-bottom: 5px;">Welcome back, {{ session.get('name') }}</h2>
+        <p style="color: var(--text-main); font-size: 1.1rem;">
+            Class: <span style="color: var(--primary); font-weight: 700;">{{ session.get('department') }}</span> • Roll No: <span style="color: var(--primary); font-weight: 800;">{{ session.get('roll_no', 'N/A') }}</span>
         </p>
     </div>
 </div>
@@ -21,7 +21,7 @@
     <!-- Stat 1 -->
     <div class="glass-card animate-fade-in" style="border-left: 4px solid var(--accent);">
         <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 1.5rem;">
-            <div style="width: 44px; height: 44px; background: rgba(139, 92, 246, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--accent);">
+            <div style="width: 44px; height: 44px; background: var(--primary-light); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--accent);">
                 <i class="fas fa-file-signature"></i>
             </div>
             <p style="color: var(--text-muted); font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Recent Request</p>
@@ -46,7 +46,7 @@
     </div>
 
     <!-- Quick Actions -->
-    <div class="glass-card animate-fade-in" style="display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at center, rgba(99, 102, 241, 0.1), transparent);">
+    <div class="glass-card animate-fade-in" style="display: flex; align-items: center; justify-content: center; background: var(--bg-card);">
         <a href="{{ url_for('apply_leave') }}" class="glow-button" style="width: 100%; justify-content: center;">
             <i class="fas fa-plus-circle"></i> New Leave Request
         </a>
@@ -55,29 +55,29 @@
 
 <!-- Class Information -->
 <div class="glass-card animate-fade-in" style="margin-bottom: 2.5rem; border-top: 4px solid var(--accent);">
-    <div style="padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 10px;">
+    <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-glass); display: flex; align-items: center; gap: 10px;">
         <i class="fas fa-chalkboard-teacher" style="color: var(--accent); font-size: 1.2rem;"></i>
-        <h3 style="font-size: 1.1rem; font-weight: 800; color: white; margin: 0;">Class Information</h3>
+        <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin: 0;">Class Information</h3>
     </div>
     <div style="padding: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
         <div>
             <p style="color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Head of Department (HOD)</p>
-            <p style="color: white; font-weight: 700; font-size: 1.1rem; margin: 0;">{{ hod_name }}</p>
+            <p style="color: var(--text-main); font-weight: 700; font-size: 1.1rem; margin: 0;">{{ hod_name }}</p>
         </div>
         <div>
             <p style="color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Class Mentor</p>
-            <p style="color: white; font-weight: 700; font-size: 1.1rem; margin: 0;">{{ mentor_name }}</p>
+            <p style="color: var(--text-main); font-weight: 700; font-size: 1.1rem; margin: 0;">{{ mentor_name }}</p>
         </div>
     </div>
     
     {% if subject_teachers %}
-    <div style="padding: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.1);">
+    <div style="padding: 1.5rem; border-top: 1px solid var(--border-glass); background: var(--bg-main);">
         <p style="color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1rem;">Subject Teachers</p>
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem;">
             {% for subject, teacher in subject_teachers.items() %}
-            <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border-left: 3px solid var(--primary);">
+            <div style="background: var(--bg-card); padding: 12px; border-radius: 8px; border: 1px solid var(--border-glass); border-left: 3px solid var(--primary);">
                 <p style="color: var(--primary); font-size: 0.8rem; font-weight: 700; margin-bottom: 3px;">{{ subject }}</p>
-                <p style="color: white; font-size: 0.95rem; font-weight: 600; margin: 0;">{{ teacher }}</p>
+                <p style="color: var(--text-main); font-size: 0.95rem; font-weight: 600; margin: 0;">{{ teacher }}</p>
             </div>
             {% endfor %}
         </div>
@@ -87,8 +87,8 @@
 
 <!-- Recent Transactions -->
 <div class="glass-card table-box animate-fade-in" style="margin-bottom: 3rem;">
-    <div style="padding: 1.5rem 1.5rem 0.5rem; display: flex; justify-content: space-between; align-items: center;">
-        <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Application History</h3>
+    <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-glass);">
+        <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--text-main);">Application History</h3>
         <i class="fas fa-history" style="color: var(--text-muted); opacity: 0.5;"></i>
     </div>
 
@@ -108,7 +108,7 @@
                 <td style="color: var(--text-muted); font-size: 0.85rem; white-space: nowrap;">
                     {{ leave.created_at.strftime('%d %b, %Y') }}
                 </td>
-                <td style="font-weight: 600; color: white; max-width: 250px;">{{ leave.reason }}</td>
+                <td style="font-weight: 500; color: var(--text-main); max-width: 250px;">{{ leave.reason }}</td>
                 <td style="font-weight: 700; color: var(--primary);">{{ leave.dates }}</td>
                 <td>
                     <span class="status-badge {{ get_effective_status(leave)|lower|replace(' ', '-') }}">
@@ -121,14 +121,14 @@
                 </div>
                 {% endif %}
                 </td>
-                <td style="font-size: 0.8rem; color: var(--accent); font-style: italic;">
+                <td style="font-size: 0.8rem; color: var(--text-muted); font-style: italic;">
                     {{ leave.remark if leave.remark else '--' }}
                 </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="4" style="text-align: center; padding: 4rem; color: var(--text-muted);">
-                    <i class="fas fa-inbox" style="display: block; font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.1;"></i>
+                <td colspan="5" style="text-align: center; padding: 4rem; color: var(--text-muted);">
+                    <i class="fas fa-inbox" style="display: block; font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.2;"></i>
                     You haven't applied for any leaves yet.
                 </td>
             </tr>

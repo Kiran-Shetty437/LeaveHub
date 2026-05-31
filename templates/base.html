@@ -27,7 +27,7 @@
         <aside class="sidebar">
             <div class="sidebar-header">
                 <i class="fas fa-bolt logo-icon"></i>
-                <span class="logo-text">LeaveHub</span>
+                <span class="logo-text">CampusCore</span>
             </div>
 
             <nav class="sidebar-nav">
@@ -108,14 +108,14 @@
                 {% if session.get('is_hod') %}
                 <a href="{{ url_for('hod_assign_subjects') }}"
                     class="nav-item {% if '/hod/assign_subjects' in request.path %}active{% endif %}"
-                    style="border-left: 2px solid gold;">
-                    <i class="fas fa-user-tie" style="color: gold;"></i>
+                    style="border-left: 3px solid var(--warning);">
+                    <i class="fas fa-user-tie" style="color: var(--warning);"></i>
                     <span>HOD Panel</span>
                 </a>
                 <a href="{{ url_for('hod_teacher_leaves') }}"
                     class="nav-item {% if '/hod/teacher_leaves' in request.path %}active{% endif %}"
-                    style="border-left: 2px solid gold;">
-                    <i class="fas fa-user-clock" style="color: gold;"></i>
+                    style="border-left: 3px solid var(--warning);">
+                    <i class="fas fa-user-clock" style="color: var(--warning);"></i>
                     <span>Faculty Leaves</span>
                 </a>
                 {% endif %}
@@ -143,15 +143,14 @@
 
             <div class="sidebar-footer" style="padding: 1.5rem; border-top: 1px solid var(--border-glass);">
                 <div class="user-info" style="display: flex; align-items: center; gap: 12px; margin-bottom: 1.5rem;">
-                    <div
-                        style="width: 40px; height: 40px; background: var(--accent-gradient); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: white;">
+                    <div class="avatar">
                         {{ session.get('name', 'U')[0] | upper }}
                     </div>
                     <div style="overflow: hidden;">
                         <p
-                            style="font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            style="font-size: 0.9rem; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px;">
                             {{ session.get('name') }}</p>
-                        <p style="font-size: 0.75rem; color: var(--text-muted);">{{ session.get('role') }}</p>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">{{ session.get('role') }}</p>
                     </div>
                 </div>
                 <a href="{{ url_for('logout') }}" class="nav-item" style="margin-bottom: 0;">
@@ -168,7 +167,7 @@
             {% if session.get('user_id') and request.endpoint != 'login' %}
             <header class="top-header">
                 <div>
-                    <h1 style="color: white; font-weight: 700;">{% block page_title %}{% endblock %}</h1>
+                    <h1 style="color: var(--text-main); font-weight: 700; letter-spacing: -0.025em;">{% block page_title %}{% endblock %}</h1>
                     <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">Welcome back to your
                         workspace.</p>
                 </div>
@@ -186,10 +185,10 @@
                 {% if messages %}
                 {% for category, message in messages %}
                 <div class="glass-card"
-                    style="border-left: 4px solid var(--primary); margin-bottom: 1.5rem; padding: 1rem 1.5rem; background: #1e293b;">
+                    style="border-left: 4px solid var(--primary); margin-bottom: 1.5rem; padding: 1rem 1.5rem; background: var(--primary-light) !important; border-color: var(--primary) !important;">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <i class="fas fa-info-circle" style="color: var(--primary);"></i>
-                        <span style="font-weight: 500; color: white;">{{ message }}</span>
+                        <span style="font-weight: 500; color: var(--primary);">{{ message }}</span>
                     </div>
                 </div>
                 {% endfor %}
@@ -228,7 +227,7 @@
                         <i class="fas fa-info-circle"></i>
                     </div>
                     <div>
-                        <p style="font-size: 0.9rem; font-weight: 600; color: white; margin-bottom: 4px;">Notification</p>
+                        <p style="font-size: 0.9rem; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">Notification</p>
                         <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.4;">${message}</p>
                     </div>
                 </div>

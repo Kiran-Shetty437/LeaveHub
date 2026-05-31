@@ -1,27 +1,27 @@
 {% extends "base.html" %}
 
-{% block title %}Faculty Management | LeaveHub{% endblock %}
+{% block title %}Faculty Management | CampusCore{% endblock %}
 {% block page_title %}Faculty Directory{% endblock %}
 
 {% block content %}
 <div class="glass-card table-box animate-fade-in" style="margin-bottom: 2rem;">
-    <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; gap: 10px;">
-        <h3 style="font-size: 1.1rem; font-weight: 800; color: white; margin: 0;">Global Teacher List</h3>
+    <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-glass); flex-wrap: wrap; gap: 10px;">
+        <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin: 0;">Global Teacher List</h3>
         
         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
             <!-- Small Search Bar -->
             <div style="position: relative; width: 200px;">
                 <i class="fas fa-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem;"></i>
-                <input type="text" id="teacherSearch" placeholder="Search..." class="form-control" style="background:rgba(255,255,255,0.05); color:white; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:6px 10px 6px 30px; font-size: 0.85rem; width: 100%;">
+                <input type="text" id="teacherSearch" placeholder="Search..." class="form-control" style="padding:6px 10px 6px 30px; font-size: 0.85rem; width: 100%;">
             </div>
             
             <!-- Filter Dropdown Button -->
             <div style="position: relative;">
-                <button onclick="toggleFilterMenu('teacherFilterMenu')" class="status-badge" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; padding: 6px 12px; font-size: 0.85rem;">
+                <button onclick="toggleFilterMenu('teacherFilterMenu')" class="btn-secondary" style="border-radius: var(--radius-sm); padding: 6px 12px; font-size: 0.85rem; cursor: pointer;">
                     <i class="fas fa-filter"></i> Filter
                 </button>
                 <!-- Dropdown Menu -->
-                <div id="teacherFilterMenu" style="display: none; position: absolute; top: 110%; right: 0; background: #ffffff; border: 1px solid var(--border-glass); border-radius: 8px; padding: 15px; width: 220px; z-index: 100; box-shadow: var(--shadow-lg);">
+                <div id="teacherFilterMenu" style="display: none; position: absolute; top: 110%; right: 0; background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: 8px; padding: 15px; width: 220px; z-index: 100; box-shadow: var(--shadow-lg);">
                     
                     <p style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 800; margin-bottom: 10px;">Departments</p>
                     <div style="max-height: 150px; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px;">
@@ -51,7 +51,7 @@
                 </div>
             </div>
 
-            <div class="status-badge" style="background: rgba(99, 102, 241, 0.1); color: var(--primary); font-size: 0.85rem;">
+            <div class="status-badge" style="background: var(--primary-light); color: var(--primary); font-size: 0.85rem;">
                 <i class="fas fa-users-viewfinder"></i> {{ teachers|length }} Total
             </div>
             <button onclick="document.getElementById('addTeacherPopup').style.display='block'" class="glow-button" style="padding: 6px 12px; font-size: 0.85rem; border: none; cursor: pointer;">
@@ -77,11 +77,11 @@
                 <td style="color: var(--text-muted); font-family: monospace; font-size: 0.85rem;">#{{ teacher.id }}</td>
                 <td>
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 32px; height: 32px; background: rgba(255,255,255,0.05); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--primary); font-size: 0.75rem;">
+                        <div style="width: 32px; height: 32px; background: var(--bg-main); border: 1px solid var(--border-glass); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--primary); font-size: 0.75rem;">
                             {{ teacher.name[0] | upper }}
                         </div>
                         <div style="display: flex; flex-direction: column;">
-                            <span style="font-weight: 700; color: white; display: flex; align-items: center; gap: 5px;">
+                            <span style="font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 5px;">
                                 {{ teacher.name }}
                                 {% if teacher.is_hod %}
                                 <i class="fas fa-crown hod-badge" style="color: var(--warning); font-size: 0.75rem;" title="Head of Department"></i>
@@ -94,16 +94,16 @@
                     </div>
                 </td>
                 <td>
-                    <span class="status-badge" style="background: rgba(139, 92, 246, 0.05); color: #a78bfa; border: none; font-size: 0.65rem;">
+                    <span class="status-badge" style="background: var(--primary-light); color: var(--primary); border: none; font-size: 0.65rem;">
                         {{ teacher.department }}
                     </span>
                 </td>
                 <td>
                     <div style="font-size: 0.8rem; color: var(--text-muted);">{{ teacher.email }}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted); opacity: 0.6;">{{ teacher.phone }}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); opacity: 0.8;">{{ teacher.phone }}</div>
                 </td>
                 <td>
-                    <code style="background: rgba(99, 102, 241, 0.1); color: var(--primary); padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 0.75rem;">
+                    <code style="background: var(--bg-main); color: var(--primary); border: 1px solid var(--border-glass); padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 0.75rem;">
                         {{ teacher.username }}
                     </code>
                 </td>
@@ -123,7 +123,7 @@
             {% else %}
             <tr id="noTeacherRow">
                 <td colspan="6" style="text-align: center; padding: 5rem; color: var(--text-muted);">
-                    <i class="fas fa-user-slash" style="display: block; font-size: 3rem; margin-bottom: 1.5rem; opacity: 0.1;"></i>
+                    <i class="fas fa-user-slash" style="display: block; font-size: 3rem; margin-bottom: 1.5rem; opacity: 0.2;"></i>
                     No faculty records found.
                 </td>
             </tr>
@@ -133,7 +133,7 @@
 </div>
 
 <div id="addTeacherPopup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6) !important; z-index:9999; backdrop-filter:blur(5px);">
-    <div class="glass-card" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:500px; padding:2rem; background:#ffffff !important;">
+    <div class="glass-card" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:500px; padding:2rem; background:var(--bg-card) !important;">
         <div style="display:flex; justify-content:space-between; margin-bottom:1.5rem;">
             <h3 style="color:var(--text-main); font-weight:800; margin:0;">Add New Teacher</h3>
             <button onclick="document.getElementById('addTeacherPopup').style.display='none'" style="background:none; border:none; color:var(--text-muted); cursor:pointer;"><i class="fas fa-times"></i></button>

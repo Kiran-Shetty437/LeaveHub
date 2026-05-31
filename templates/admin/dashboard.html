@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Admin Dashboard | LeaveHub{% endblock %}
+{% block title %}Admin Dashboard | CampusCore{% endblock %}
 {% block page_title %}System Administration{% endblock %}
 
 {% block content %}
@@ -8,48 +8,48 @@
     <!-- Total Teachers Card -->
     <div class="glass-card animate-fade-in" style="border-left: 4px solid var(--primary);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <div style="width: 50px; height: 50px; background: rgba(99, 102, 241, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--primary);">
+            <div style="width: 50px; height: 50px; background: var(--primary-light); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--primary);">
                 <i class="fas fa-user-tie" style="font-size: 1.5rem;"></i>
             </div>
             <div style="font-size: 0.7rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Faculty</div>
         </div>
-        <h3 style="font-size: 2.5rem; font-weight: 800; color: white; margin-bottom: 0.5rem;">{{ teacher_count }}</h3>
+        <h3 style="font-size: 2.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.5rem;">{{ teacher_count }}</h3>
         <p style="color: var(--text-muted); font-size: 0.9rem;">Registered faculty members</p>
     </div>
 
     <!-- Total Students Card -->
     <div class="glass-card animate-fade-in" style="border-left: 4px solid var(--accent);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <div style="width: 50px; height: 50px; background: rgba(139, 92, 246, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--accent);">
+            <div style="width: 50px; height: 50px; background: var(--primary-light); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--accent);">
                 <i class="fas fa-graduation-cap" style="font-size: 1.5rem;"></i>
             </div>
             <div style="font-size: 0.7rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Enrollment</div>
         </div>
-        <h3 style="font-size: 2.5rem; font-weight: 800; color: white; margin-bottom: 0.5rem;">{{ student_count }}</h3>
+        <h3 style="font-size: 2.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.5rem;">{{ student_count }}</h3>
         <p style="color: var(--text-muted); font-size: 0.9rem;">Total active students</p>
     </div>
 
     <!-- Pending Actions Card -->
     {% if pending_leaves > 0 %}
-    <div class="glass-card animate-fade-in" style="border-left: 4px solid var(--warning); background: rgba(250, 204, 21, 0.03);">
+    <div class="glass-card animate-fade-in" style="border-left: 4px solid var(--warning); background: var(--warning-light);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <div style="width: 50px; height: 50px; background: rgba(250, 204, 21, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--warning);">
+            <div style="width: 50px; height: 50px; background: var(--bg-card); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--warning);">
                 <i class="fas fa-clock-rotate-left" style="font-size: 1.5rem;"></i>
             </div>
             <div id="live-indicator" style="width: 10px; height: 10px; background: var(--warning); border-radius: 50%; box-shadow: 0 0 15px var(--warning); animation: pulse 2s infinite;"></div>
         </div>
-        <h3 style="font-size: 2.5rem; font-weight: 800; color: white; margin-bottom: 0.5rem;">{{ pending_leaves }}</h3>
-        <p style="color: var(--text-muted); font-size: 0.9rem;">Requests awaiting review</p>
+        <h3 style="font-size: 2.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.5rem;">{{ pending_leaves }}</h3>
+        <p style="color: var(--text-main); font-size: 0.9rem;">Requests awaiting review</p>
     </div>
     {% else %}
-    <div class="glass-card animate-fade-in" style="border-left: 4px solid var(--success); background: rgba(34, 197, 94, 0.03);">
+    <div class="glass-card animate-fade-in" style="border-left: 4px solid var(--success); background: var(--success-light);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <div style="width: 50px; height: 50px; background: rgba(34, 197, 94, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--success);">
+            <div style="width: 50px; height: 50px; background: var(--bg-card); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--success);">
                 <i class="fas fa-check-circle" style="font-size: 1.5rem;"></i>
             </div>
         </div>
-        <h3 style="font-size: 2.5rem; font-weight: 800; color: white; margin-bottom: 0.5rem;">0</h3>
-        <p style="color: var(--text-muted); font-size: 0.9rem;">All caught up!</p>
+        <h3 style="font-size: 2.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.5rem;">0</h3>
+        <p style="color: var(--text-main); font-size: 0.9rem;">All caught up!</p>
     </div>
     {% endif %}
 </div>
@@ -57,29 +57,29 @@
 <div style="display: grid; grid-template-columns: 1.8fr 1fr; gap: 1.5rem; margin-bottom: 3rem;">
     <!-- Shortcuts Box -->
     <div class="glass-card animate-fade-in">
-        <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 2rem; color: white;">Management Hub</h3>
+        <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 2rem; color: var(--text-main);">Management Hub</h3>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
-            <a href="{{ url_for('manage_teachers') }}" class="glass-card" style="padding: 1.5rem; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
+            <a href="{{ url_for('manage_teachers') }}" class="glass-card" style="padding: 1.5rem; text-align: center; border: 1px solid var(--border-glass); background: var(--bg-card);">
                 <i class="fas fa-user-tie" style="font-size: 1.8rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
                 <span style="font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Faculty</span>
             </a>
-            <a href="{{ url_for('manage_students') }}" class="glass-card" style="padding: 1.5rem; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
+            <a href="{{ url_for('manage_students') }}" class="glass-card" style="padding: 1.5rem; text-align: center; border: 1px solid var(--border-glass); background: var(--bg-card);">
                 <i class="fas fa-user-graduate" style="font-size: 1.8rem; color: var(--accent); margin-bottom: 1rem; display: block;"></i>
                 <span style="font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Students</span>
             </a>
-            <a href="{{ url_for('view_all_leaves') }}" class="glass-card" style="padding: 1.5rem; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(99, 102, 241, 0.1);">
+            <a href="{{ url_for('view_all_leaves') }}" class="glass-card" style="padding: 1.5rem; text-align: center; border: 1px solid var(--border-glass); background: var(--primary); color: white !important;">
                 <i class="fas fa-clipboard-list" style="font-size: 1.8rem; color: white; margin-bottom: 1rem; display: block;"></i>
-                <span style="font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Portal</span>
+                <span style="font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: white;">Portal</span>
             </a>
-            <a href="{{ url_for('manage_faculty_leaves') }}" class="glass-card" style="padding: 1.5rem; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
-                <i class="fas fa-boxes-stacked" style="font-size: 1.8rem; color: var(--highlight); margin-bottom: 1rem; display: block;"></i>
+            <a href="{{ url_for('manage_faculty_leaves') }}" class="glass-card" style="padding: 1.5rem; text-align: center; border: 1px solid var(--border-glass); background: var(--bg-card);">
+                <i class="fas fa-boxes-stacked" style="font-size: 1.8rem; color: var(--warning); margin-bottom: 1rem; display: block;"></i>
                 <span style="font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Quota</span>
             </a>
-            <a href="{{ url_for('manage_settings') }}" class="glass-card" style="padding: 1.5rem; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
+            <a href="{{ url_for('manage_settings') }}" class="glass-card" style="padding: 1.5rem; text-align: center; border: 1px solid var(--border-glass); background: var(--bg-card);">
                 <i class="fas fa-gears" style="font-size: 1.8rem; color: var(--text-muted); margin-bottom: 1rem; display: block;"></i>
                 <span style="font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Session</span>
             </a>
-            <a href="{{ url_for('admin_all_timetables') }}" class="glass-card" style="padding: 1.5rem; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(59, 130, 246, 0.08);">
+            <a href="{{ url_for('admin_all_timetables') }}" class="glass-card" style="padding: 1.5rem; text-align: center; border: 1px solid var(--border-glass); background: var(--bg-card);">
                 <i class="fas fa-table-list" style="font-size: 1.8rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
                 <span style="font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Timetable</span>
             </a>
@@ -87,8 +87,8 @@
     </div>
 
     <!-- Health Box -->
-    <div class="glass-card animate-fade-in" style="background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.1), transparent);">
-        <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 2rem; color: white;">System Engine</h3>
+    <div class="glass-card animate-fade-in" style="background: var(--bg-main);">
+        <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 2rem; color: var(--text-main);">System Engine</h3>
         
         <div style="display: flex; flex-direction: column; gap: 1.5rem;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -97,10 +97,10 @@
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Gateway Time</span>
-                <span id="gateway-clock" style="color: white; font-weight: 800; font-size: 1rem; font-family: monospace;"></span>
+                <span id="gateway-clock" style="color: var(--text-main); font-weight: 800; font-size: 1rem; font-family: monospace;"></span>
             </div>
-            <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; margin-top: 1rem;">
-                <div style="width: 100%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: 1s ease;"></div>
+            <div style="width: 100%; height: 8px; background: var(--border-glass); border-radius: 4px; overflow: hidden; margin-top: 1rem;">
+                <div style="width: 100%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--info)); transition: 1s ease;"></div>
             </div>
             <p style="font-size: 0.7rem; color: var(--text-muted); text-align: center; font-weight: 500;">AI Engine & Socket.IO clusters are operational.</p>
         </div>

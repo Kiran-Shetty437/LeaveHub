@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Mark Attendance | LeaveHub{% endblock %}
+{% block title %}Mark Attendance | CampusCore{% endblock %}
 {% block page_title %}Engagement Audit: {{ class_name }} - {{ subject }}{% endblock %}
 
 {% block content %}
@@ -13,7 +13,7 @@
             <div>
                 <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Batch Configuration</h3>
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <select id="month_selector" onchange="changeMonth()" style="background: #ffffff; border: 1px solid rgba(0,0,0,0.1); color: #000000; padding: 8px 16px; border-radius: 8px; font-size: 0.9rem; font-weight: 800; outline: none; cursor: pointer; appearance: auto; -webkit-appearance: menulist;">
+                    <select id="month_selector" onchange="changeMonth()" style="background: var(--bg-card); border: 1px solid rgba(0,0,0,0.1); color: #000000; padding: 8px 16px; border-radius: 8px; font-size: 0.9rem; font-weight: 800; outline: none; cursor: pointer; appearance: auto; -webkit-appearance: menulist;">
                         {% for m in months_list %}
                         <option value="{{ m }}" {% if m == current_month %}selected{% endif %} style="color: black; background: white;">{{ m }}</option>
                         {% endfor %}

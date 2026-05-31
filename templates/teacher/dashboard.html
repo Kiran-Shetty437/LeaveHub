@@ -1,25 +1,25 @@
 {% extends "base.html" %}
 
-{% block title %}Teacher Dashboard | LeaveHub{% endblock %}
+{% block title %}Teacher Dashboard | CampusCore{% endblock %}
 {% block page_title %}Teaching Center{% endblock %}
 
 {% block content %}
 <!-- Welcome Glass Box -->
-<div class="glass-card animate-fade-in" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05)); padding: 3rem; margin-bottom: 2.5rem; border-left: 4px solid var(--primary);">
+<div class="glass-card animate-fade-in" style="background: var(--primary-light); padding: 3rem; margin-bottom: 2.5rem; border-left: 4px solid var(--primary); border-color: var(--border-glass);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <h2 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -1px; color: white;">Good Day, {{ session.get('name') }}</h2>
-            <p style="color: var(--text-muted); font-size: 1.1rem; max-width: 600px;">
+            <h2 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -1px; color: var(--primary);">Good Day, {{ session.get('name') }}</h2>
+            <p style="color: var(--text-main); font-size: 1.1rem; max-width: 600px;">
                 Department: <span style="color: var(--primary); font-weight: 700;">{{ session.get('department') }}</span>
-                Manage your teaching schedule and student requests from here.
+                <br>Manage your teaching schedule and student requests from here.
             </p>
         </div>
         <div style="text-align: right;">
-            <div id="liveTime" style="font-size: 1.5rem; font-weight: 800; color: white;">Loading...</div>
+            <div id="liveTime" style="font-size: 1.5rem; font-weight: 800; color: var(--primary);">Loading...</div>
             <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Real-time clock</div>
         </div>
     </div>
-    <i class="fas fa-chalkboard-teacher" style="font-size: 8rem; opacity: 0.03; position: absolute; right: 20px; bottom: -20px;"></i>
+    <i class="fas fa-chalkboard-teacher" style="font-size: 8rem; opacity: 0.05; position: absolute; right: 20px; bottom: -20px; color: var(--primary);"></i>
 </div>
 
 <div class="card-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem;">
@@ -37,7 +37,7 @@
             <div class="status-badge {{ last.status.lower().replace(' ', '-') }}" style="margin-bottom: 1rem;">
                 {{ last.status }}
             </div>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">Scheduled: <span style="color: white; font-weight: 600;">{{ last.dates }}</span></p>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">Scheduled: <span style="color: var(--text-main); font-weight: 600;">{{ last.dates }}</span></p>
         {% else %}
             <p style="color: var(--text-muted); font-size: 0.9rem;">No active leave requests.</p>
         {% endif %}
@@ -45,20 +45,20 @@
 
     {% if session.get('is_mentor') %}
     <!-- Student Requests pending -->
-    <div class="glass-card animate-fade-in" style="border-top: 2px solid var(--warning);">
+    <div class="glass-card animate-fade-in" style="border-top: 3px solid var(--warning);">
         <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 1.5rem;">
-            <div style="width: 44px; height: 44px; background: rgba(250, 204, 21, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--warning);">
+            <div style="width: 44px; height: 44px; background: var(--warning-light); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--warning);">
                 <i class="fas fa-user-clock"></i>
             </div>
             <p style="color: var(--text-muted); font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Pending Approval</p>
         </div>
-        <h3 style="font-size: 2rem; font-weight: 800; color: white; margin-bottom: 0.5rem;">{{ pending_student_leaves }}</h3>
+        <h3 style="font-size: 2rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.5rem;">{{ pending_student_leaves }}</h3>
         <p style="font-size: 0.8rem; color: var(--text-muted);">Student requests awaiting your recommendation.</p>
     </div>
     {% endif %}
     
     <!-- Quick Actions -->
-    <div class="glass-card animate-fade-in" style="display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at center, rgba(139, 92, 246, 0.1), transparent);">
+    <div class="glass-card animate-fade-in" style="display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg-card);">
         <div style="display: flex; gap: 10px;">
             <a href="{{ url_for('apply_leave') }}" class="glow-button">
                 <i class="fas fa-paper-plane"></i> Apply Leave
@@ -68,13 +68,13 @@
 </div>
 
 <!-- Today's Class Absentees Section -->
-<div class="glass-card table-box animate-fade-in" style="margin-bottom: 3rem; background: rgba(99, 102, 241, 0.05); border-left: 4px solid var(--primary);">
-    <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05);">
+<div class="glass-card table-box animate-fade-in" style="margin-bottom: 3rem; border-left: 4px solid var(--primary);">
+    <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-glass);">
         <div>
-            <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Today's Absentees in Your Classes</h3>
+            <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--text-main);">Today's Absentees in Your Classes</h3>
             <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 4px;">Dynamic tracker showing absentees for classes you teach today.</p>
         </div>
-        <div class="status-badge" style="font-size: 0.65rem; background: rgba(99, 102, 241, 0.2); color: white;">
+        <div class="status-badge" style="font-size: 0.65rem; background: var(--primary-light); color: var(--primary);">
             <i class="fas fa-calendar-day" style="margin-right: 5px;"></i> TODAY
         </div>
     </div>
@@ -101,13 +101,13 @@
                 {% else %}
                     {% for cls in today_classes %}
                         {% if cls in today_class_absentees and today_class_absentees[cls]|length > 0 %}
-                            <div style="background: rgba(0,0,0,0.2); border-radius: 12px; padding: 1rem; border: 1px solid rgba(255,255,255,0.05);">
-                                <h4 style="color: var(--primary); font-weight: 800; margin-bottom: 0.8rem; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">Class: {{ cls }}</h4>
+                            <div style="background: var(--bg-main); border-radius: 12px; padding: 1rem; border: 1px solid var(--border-glass);">
+                                <h4 style="color: var(--primary); font-weight: 800; margin-bottom: 0.8rem; font-size: 1rem; border-bottom: 1px solid var(--border-glass); padding-bottom: 0.5rem;">Class: {{ cls }}</h4>
                                 <div style="display: flex; flex-wrap: wrap; gap: 1rem;">
                                     {% for leave in today_class_absentees[cls] %}
-                                    <div class="glass-card" style="flex: 1; min-width: 200px; padding: 1rem; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2);">
-                                        <h5 style="color: white; font-weight: 700; margin-bottom: 0.2rem;">{{ leave.user.name }}</h5>
-                                        <span style="color: var(--text-muted); font-size: 0.75rem;">Roll: {{ leave.user.roll_no }}</span>
+                                    <div class="glass-card" style="flex: 1; min-width: 200px; padding: 1rem; background: var(--danger-light); border: 1px solid var(--danger-light); box-shadow: none !important;">
+                                        <h5 style="color: var(--danger); font-weight: 700; margin-bottom: 0.2rem;">{{ leave.user.name }}</h5>
+                                        <span style="color: var(--danger); font-size: 0.75rem; opacity: 0.8;">Roll: {{ leave.user.roll_no }}</span>
                                     </div>
                                     {% endfor %}
                                 </div>
@@ -172,8 +172,8 @@
 
 <!-- Recent Activity Table -->
 <div class="glass-card table-box animate-fade-in" style="margin-bottom: 3rem;">
-    <div style="padding: 1.5rem 1.5rem 0.5rem; display: flex; justify-content: space-between; align-items: center;">
-        <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Personal Leave History</h3>
+    <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-glass);">
+        <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--text-main);">Personal Leave History</h3>
         <i class="fas fa-history" style="color: var(--text-muted); opacity: 0.5;"></i>
     </div>
 
@@ -191,10 +191,10 @@
             {% for leave in my_leaves[::-1][:5] %}
             <tr>
                 <td style="font-weight: 700; color: var(--primary); white-space: nowrap;">{{ leave.dates }}</td>
-                <td style="font-weight: 600; color: white; max-width: 250px;">{{ leave.reason }}</td>
+                <td style="font-weight: 500; color: var(--text-main); max-width: 250px;">{{ leave.reason }}</td>
                 <td>
                     {% if leave.start_time %}
-                    <span style="color: white; font-size: 0.85rem; font-weight: 600;">Starts {{ leave.start_time }}</span>
+                    <span style="color: var(--text-main); font-size: 0.85rem; font-weight: 600;">Starts {{ leave.start_time }}</span>
                     {% else %}
                     <span style="color: var(--text-muted); font-size: 0.85rem;">Full Working Day</span>
                     {% endif %}
@@ -204,14 +204,14 @@
                         {{ leave.status }}
                     </span>
                 </td>
-                <td style="font-size: 0.8rem; color: var(--accent); font-style: italic;">
+                <td style="font-size: 0.8rem; color: var(--text-muted); font-style: italic;">
                     {{ leave.remark if leave.remark else '--' }}
                 </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="4" style="text-align: center; padding: 4rem; color: var(--text-muted);">
-                    <i class="fas fa-folder-open" style="display: block; font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.1;"></i>
+                <td colspan="5" style="text-align: center; padding: 4rem; color: var(--text-muted);">
+                    <i class="fas fa-folder-open" style="display: block; font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.2;"></i>
                     No personal leave history records.
                 </td>
             </tr>
