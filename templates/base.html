@@ -133,6 +133,11 @@
                     <i class="fas fa-table-list"></i>
                     <span>Timetable</span>
                 </a>
+                <a href="{{ url_for('student_attendance') }}"
+                    class="nav-item {% if '/student/attendance' in request.path %}active{% endif %}">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Attendance</span>
+                </a>
                 {% endif %}
             </nav>
 

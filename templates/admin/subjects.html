@@ -10,10 +10,10 @@
         <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Define New Curriculum</h3>
     </div>
     
-    <form action="{{ url_for('manage_subjects') }}" method="POST" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; align-items: end;">
+    <form action="{{ url_for('manage_subjects') }}" method="POST" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: end;">
         <div class="form-group">
-            <label style="color: var(--text-muted); font-size: 0.75rem; font-weight: 800; text-transform: uppercase;">Existing Class</label>
-            <select name="class_name" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; color: white; width: 100%; cursor: pointer;">
+            <label style="color: var(--text-muted); font-size: 0.7rem; font-weight: 800; text-transform: uppercase;">Existing Class</label>
+            <select name="class_name" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; color: white; width: 100%; cursor: pointer; font-size: 0.85rem;">
                 <option value="" style="background: #1e293b; color: white;">-- NEW CLASS --</option>
                 {% for class_name in mapping.keys() %}
                 <option value="{{ class_name }}" style="background: #1e293b; color: white;">{{ class_name }}</option>
@@ -21,14 +21,14 @@
             </select>
         </div>
         <div class="form-group">
-            <label style="color: var(--text-muted); font-size: 0.75rem; font-weight: 800; text-transform: uppercase;">Or Create Class</label>
-            <input type="text" name="new_class_name" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; color: white; width: 100%;" placeholder="e.g. VISC">
+            <label style="color: var(--text-muted); font-size: 0.7rem; font-weight: 800; text-transform: uppercase;">Or Create Class</label>
+            <input type="text" name="new_class_name" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; color: white; width: 100%; font-size: 0.85rem;" placeholder="e.g. VISC">
         </div>
         <div class="form-group">
-            <label style="color: var(--text-muted); font-size: 0.75rem; font-weight: 800; text-transform: uppercase;">Subject Code/Name</label>
-            <input type="text" name="subject" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; color: white; width: 100%;" placeholder="e.g. Data Structures" required>
+            <label style="color: var(--text-muted); font-size: 0.7rem; font-weight: 800; text-transform: uppercase;">Subject Code/Name</label>
+            <input type="text" name="subject" class="form-control" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; color: white; width: 100%; font-size: 0.85rem;" placeholder="e.g. Data Structures" required>
         </div>
-        <button type="submit" class="glow-button" style="height: 50px; justify-content: center;">
+        <button type="submit" class="glow-button" style="height: 44px; justify-content: center; font-size: 0.8rem;">
             <i class="fas fa-plus"></i> ADD TO SYSTEM
         </button>
     </form>

@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}All Timetables | Admin{% endblock %}
+{% block page_title %}All Class Timetables{% endblock %}
+
+{% block content %}
+<div class="glass-card animate-fade-in" style="padding: 1.5rem; margin-bottom: 2.5rem; border-left: 4px solid var(--primary); background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.03), transparent);">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <div style="width: 44px; height: 44px; background: rgba(59, 130, 246, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary);">
+            <i class="fas fa-table-list"></i>
+        </div>
+        <div>
+            <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Institution-Wide Timetable Viewer</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Browse verified schedules for all <span style="color: white; font-weight: 700;">{{ timetable_data | length }}</span> classes</p>
+        </div>
+    </div>
+</div>
+
+{% if timetable_data %}
+<!-- Class Selector -->
+<div class="glass-card animate-fade-in" style="padding: 1.5rem; margin-bottom: 2rem;">
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <i class="fas fa-filter" style="color: var(--accent);"></i>
+        <span style="font-weight: 700; color: white; font-size: 0.9rem;">Select Class:</span>
+        <select id="classSelector" onchange="filterClass()" style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 16px; font-family: inherit; font-size: 0.85rem; cursor: pointer; outline: none;">
+            <option value="ALL" style="background: #1e293b;">All Classes</option>
+            {% for class_name in timetable_data.keys() | sort %}
+            <option value="{{ class_name }}" style="background: #1e293b;">{{ class_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+{% for class_name, class_data in timetable_data.items() | sort %}
+<div class="class-timetable-block" data-class="{{ class_name }}">
+    <!-- Class Header -->
+    <div class="glass-card animate-fade-in" style="padding: 1.2rem 1.5rem; margin-bottom: 0.5rem; border-radius: 12px 12px 0 0; border-left: 4px solid var(--accent); display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 36px; height: 36px; background: rgba(139, 92, 246, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--accent); font-weight: 800; font-size: 0.8rem;">
+                {{ class_name[:2] | upper }}
+            </div>
+            <div>
+                <h3 style="font-size: 1rem; font-weight: 800; color: white;">{{ class_name }}</h3>
+                <p style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Class Schedule</p>
+            </div>
+        </div>
+        <div style="font-size: 0.7rem; color: var(--success); font-weight: 700; display: flex; align-items: center; gap: 6px;">
+            <i class="fas fa-circle" style="font-size: 0.4rem;"></i> ACTIVE
+        </div>
+    </div>
+
+    <!-- Timetable Grid -->
+    <div class="glass-card animate-fade-in" style="padding: 1rem; margin-bottom: 2.5rem; border-radius: 0 0 12px 12px; overflow-x: auto;">
+        <table style="width: 100%; border-collapse: separate; border-spacing: 4px;">
+            <thead>
+                <tr>
+                    <th style="background: rgba(255,255,255,0.05); color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; padding: 10px; border-radius: 6px;">Day</th>
+                    {% for p in periods %}
+                        {% if p == 5 %}
+                        <th style="background: rgba(250, 204, 21, 0.05); color: var(--warning); font-size: 0.65rem; font-weight: 800; padding: 10px; border-radius: 6px;">LUNCH</th>
+                        {% endif %}
+                        <th style="background: rgba(255,255,255,0.03); color: white; font-weight: 800; font-size: 0.8rem; padding: 10px; border-radius: 6px;">P{{ p }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for day in days %}
+                <tr>
+                    <td style="background: rgba(59, 130, 246, 0.08); color: white; font-weight: 800; text-align: center; border-radius: 8px; font-size: 0.8rem; padding: 12px;">{{ day[:3] | upper }}</td>
+                    {% for p in periods %}
+                        {% if p == 5 %}
+                        <td style="background: rgba(250, 204, 21, 0.02); text-align: center; color: var(--warning); font-size: 0.55rem; font-weight: 800; letter-spacing: 2px; border-radius: 8px;">RECESS</td>
+                        {% endif %}
+                        <td style="border-radius: 8px; background: rgba(255,255,255,0.01);">
+                            <div style="min-height: 70px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 8px; gap: 4px;">
+                                {% if class_data.get(day, {}).get(p) %}
+                                    <div style="font-weight: 700; color: white; font-size: 0.82rem; text-align: center;">{{ class_data[day][p].subject }}</div>
+                                    <div style="font-size: 0.65rem; color: var(--primary); font-weight: 600;">{{ class_data[day][p].teacher }}</div>
+                                {% else %}
+                                    <div style="opacity: 0.1; font-size: 1.2rem;"><i class="fas fa-minus"></i></div>
+                                {% endif %}
+                            </div>
+                        </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="glass-card animate-fade-in" style="padding: 3rem; text-align: center;">
+    <i class="fas fa-calendar-xmark" style="font-size: 2.5rem; color: var(--text-muted); opacity: 0.3; margin-bottom: 1rem;"></i>
+    <p style="color: var(--text-muted); font-weight: 600;">No timetables have been created yet.</p>
+    <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.5rem;">Teachers or HODs need to set up class schedules first.</p>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterClass() {
+    const selected = document.getElementById('classSelector').value;
+    const blocks = document.querySelectorAll('.class-timetable-block');
+    blocks.forEach(block => {
+        if (selected === 'ALL' || block.dataset.class === selected) {
+            block.style.display = '';
+            block.style.animation = 'fadeIn 0.3s ease';
+        } else {
+            block.style.display = 'none';
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -1848,6 +1848,32 @@ def teacher_timetable():
                            dept_teachers=dept_teachers,
                            department=dept)
 
+@app.route('/admin/all_timetables')
+def admin_all_timetables():
+    if session.get('role') != 'Admin': return redirect(url_for('login'))
+    
+    all_records = TeacherTimetable.query.all()
+    timetable_data = {}
+    for record in all_records:
+        if not record.class_name: continue
+        if record.class_name not in timetable_data:
+            timetable_data[record.class_name] = {}
+        if record.day not in timetable_data[record.class_name]:
+            timetable_data[record.class_name][record.day] = {}
+            
+        timetable_data[record.class_name][record.day][record.period] = {
+            'subject': record.subject,
+            'teacher': record.teacher.name if record.teacher else "Unknown"
+        }
+        
+    days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    periods = range(1, 8)
+    
+    return render_template('admin/all_timetables.html', 
+                           timetable_data=timetable_data, 
+                           days=days, 
+                           periods=periods)
+
 @app.route('/admin/subjects', methods=['GET', 'POST'])
 def manage_subjects():
     if session.get('role') != 'Admin': return redirect(url_for('login'))
@@ -2108,6 +2134,68 @@ def student_timetable():
                            days=days, 
                            periods=periods,
                            student_class=student_class)
+
+@app.route('/student/attendance')
+def student_attendance():
+    if session.get('role') != 'Student': return redirect(url_for('login'))
+    
+    student = User.query.get(session.get('user_id'))
+    student_class = student.department
+    
+    # Overall attendance across all months
+    all_records = Attendance.query.filter_by(student_id=student.id).all()
+    overall_data = {}
+    for r in all_records:
+        if r.subject not in overall_data:
+            overall_data[r.subject] = {'total': 0, 'attended': 0}
+        overall_data[r.subject]['total'] += r.total_classes
+        overall_data[r.subject]['attended'] += r.attended_classes
+        
+    for sub, data in overall_data.items():
+        data['percentage'] = round((data['attended'] / data['total']) * 100, 2) if data['total'] > 0 else 0
+    
+    # Build month-by-month data for ALL months
+    distinct_months = list(set([r.month for r in all_records if r.month]))
+    
+    # Sort months chronologically (format: "Month YYYY")
+    def month_sort_key(m):
+        try:
+            return datetime.strptime(m, "%B %Y")
+        except:
+            return datetime.min
+    distinct_months.sort(key=month_sort_key)
+    
+    all_months_data = {}
+    for month in distinct_months:
+        month_records = [r for r in all_records if r.month == month]
+        month_subjects = {}
+        for r in month_records:
+            month_subjects[r.subject] = {
+                'total': r.total_classes,
+                'attended': r.attended_classes,
+                'percentage': round((r.attended_classes / r.total_classes) * 100, 2) if r.total_classes > 0 else 0
+            }
+        all_months_data[month] = month_subjects
+        
+    current_month = datetime.now().strftime("%B %Y")
+    
+    # Missing attendance alerts for today
+    today_day = datetime.now().strftime('%A')
+    today_classes = TeacherTimetable.query.filter_by(class_name=student_class, day=today_day).all()
+    today_subjects = list(set([tc.subject for tc in today_classes]))
+    
+    missing_alerts = []
+    for sub in today_subjects:
+        record = Attendance.query.filter_by(student_id=student.id, subject=sub, month=current_month).first()
+        if not record or record.last_updated.date() < datetime.now().date():
+            missing_alerts.append(f"Attendance for {sub} has not been uploaded by the teacher today.")
+            
+    return render_template('student/attendance.html', 
+                           overall_data=overall_data, 
+                           all_months_data=all_months_data,
+                           months_list=distinct_months,
+                           current_month=current_month,
+                           missing_alerts=missing_alerts)
 
 # Helper for HOD allowed subjects
 def get_hod_allowed_subjects(dept):

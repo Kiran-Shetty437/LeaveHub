@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance | LeaveHub{% endblock %}
+{% block page_title %}My Attendance{% endblock %}
+
+{% block content %}
+
+<!-- Missing Attendance Alerts -->
+{% if missing_alerts %}
+<div class="glass-card animate-fade-in" style="padding: 1.5rem; margin-bottom: 2rem; border-left: 4px solid var(--warning); background: radial-gradient(circle at top right, rgba(250, 204, 21, 0.03), transparent);">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 1rem;">
+        <div style="width: 40px; height: 40px; background: rgba(250, 204, 21, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--warning);">
+            <i class="fas fa-triangle-exclamation"></i>
+        </div>
+        <div>
+            <h3 style="font-size: 1rem; font-weight: 800; color: white;">Attendance Not Uploaded</h3>
+            <p style="font-size: 0.75rem; color: var(--text-muted);">The following subjects have no attendance record for today</p>
+        </div>
+    </div>
+    {% for alert in missing_alerts %}
+    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(250, 204, 21, 0.04); border-radius: 8px; margin-bottom: 6px; border: 1px solid rgba(250, 204, 21, 0.08);">
+        <i class="fas fa-exclamation-circle" style="color: var(--warning); font-size: 0.8rem;"></i>
+        <span style="font-size: 0.85rem; color: rgba(255,255,255,0.85);">{{ alert }}</span>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- OVERALL ATTENDANCE — Always Visible            -->
+<!-- ═══════════════════════════════════════════════ -->
+
+<div class="glass-card animate-fade-in" style="padding: 1.5rem; margin-bottom: 2rem; border-left: 4px solid var(--primary); background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.03), transparent);">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <div style="width: 44px; height: 44px; background: rgba(59, 130, 246, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary);">
+            <i class="fas fa-chart-bar"></i>
+        </div>
+        <div>
+            <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Overall Attendance</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">All-time subject-wise breakdown for <span style="color: white; font-weight: 700;">{{ session.get('name') }}</span> &bull; {{ session.get('department') }}</p>
+        </div>
+    </div>
+</div>
+
+{% if overall_data %}
+<!-- Stats Summary Row -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+    {% set ns = namespace(total_t=0, total_a=0) %}
+    {% for sub, data in overall_data.items() %}
+        {% set ns.total_t = ns.total_t + data.total %}
+        {% set ns.total_a = ns.total_a + data.attended %}
+    {% endfor %}
+    {% set avg_pct = ((ns.total_a / ns.total_t) * 100) | round(1) if ns.total_t > 0 else 0 %}
+    
+    <div class="glass-card animate-fade-in" style="padding: 1.2rem; text-align: center;">
+        <div style="font-size: 1.8rem; font-weight: 800; color: var(--primary);">{{ overall_data | length }}</div>
+        <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">Subjects</div>
+    </div>
+    <div class="glass-card animate-fade-in" style="padding: 1.2rem; text-align: center;">
+        <div style="font-size: 1.8rem; font-weight: 800; color: var(--success);">{{ ns.total_a }}</div>
+        <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">Attended</div>
+    </div>
+    <div class="glass-card animate-fade-in" style="padding: 1.2rem; text-align: center;">
+        <div style="font-size: 1.8rem; font-weight: 800; color: white;">{{ ns.total_t }}</div>
+        <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">Total Classes</div>
+    </div>
+    <div class="glass-card animate-fade-in" style="padding: 1.2rem; text-align: center;">
+        <div style="font-size: 1.8rem; font-weight: 800; {% if avg_pct >= 75 %}color: var(--success);{% elif avg_pct >= 60 %}color: var(--warning);{% else %}color: var(--danger);{% endif %}">{{ avg_pct }}%</div>
+        <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">Overall</div>
+    </div>
+</div>
+
+<!-- Overall Subject Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.2rem; margin-bottom: 3rem;">
+    {% for sub, data in overall_data.items() | sort %}
+    <div class="glass-card animate-fade-in" style="padding: 1.5rem; position: relative; overflow: hidden;">
+        <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: {% if data.percentage >= 75 %}var(--success){% elif data.percentage >= 60 %}var(--warning){% else %}var(--danger){% endif %};"></div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+            <div>
+                <h4 style="font-size: 1rem; font-weight: 800; color: white;">{{ sub }}</h4>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">{{ data.attended }} / {{ data.total }} classes attended</p>
+            </div>
+            <div style="font-size: 1.6rem; font-weight: 800; {% if data.percentage >= 75 %}color: var(--success);{% elif data.percentage >= 60 %}color: var(--warning);{% else %}color: var(--danger);{% endif %}">
+                {{ data.percentage }}%
+            </div>
+        </div>
+        
+        <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.05); border-radius: 999px; overflow: hidden;">
+            <div style="width: {{ data.percentage }}%; height: 100%; border-radius: 999px; background: {% if data.percentage >= 75 %}var(--success){% elif data.percentage >= 60 %}var(--warning){% else %}var(--danger){% endif %}; transition: width 1s ease;"></div>
+        </div>
+        
+        {% if data.percentage < 75 %}
+        <div style="margin-top: 10px; display: flex; align-items: center; gap: 6px;">
+            <i class="fas fa-exclamation-triangle" style="font-size: 0.65rem; color: var(--danger);"></i>
+            <span style="font-size: 0.7rem; color: var(--danger); font-weight: 600;">Below 75% threshold</span>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="glass-card animate-fade-in" style="padding: 3rem; text-align: center; margin-bottom: 3rem;">
+    <i class="fas fa-chart-simple" style="font-size: 2.5rem; color: var(--text-muted); opacity: 0.3; margin-bottom: 1rem;"></i>
+    <p style="color: var(--text-muted); font-weight: 600;">No overall attendance data recorded yet.</p>
+    <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.5rem;">Attendance will appear once your teachers start marking it.</p>
+</div>
+{% endif %}
+
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- MONTHLY ATTENDANCE — Prev/Next Navigation      -->
+<!-- ═══════════════════════════════════════════════ -->
+
+{% if months_list | length > 0 %}
+<div class="glass-card animate-fade-in" style="padding: 1.5rem; margin-bottom: 2rem; border-left: 4px solid var(--accent); background: radial-gradient(circle at top right, rgba(139, 92, 246, 0.03), transparent);">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="width: 44px; height: 44px; background: rgba(139, 92, 246, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--accent);">
+                <i class="fas fa-calendar-days"></i>
+            </div>
+            <div>
+                <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Monthly Breakdown</h3>
+                <p style="font-size: 0.8rem; color: var(--text-muted);">Navigate through each month's subject-wise attendance</p>
+            </div>
+        </div>
+        
+        <!-- Month Navigator -->
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <button id="prevMonthBtn" onclick="changeMonth(-1)" style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(139,92,246,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+                <i class="fas fa-chevron-left" style="font-size: 0.75rem;"></i>
+            </button>
+            <span id="currentMonthLabel" style="font-weight: 800; color: white; font-size: 1rem; min-width: 160px; text-align: center;"></span>
+            <button id="nextMonthBtn" onclick="changeMonth(1)" style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(139,92,246,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+                <i class="fas fa-chevron-right" style="font-size: 0.75rem;"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Month indicator dots -->
+<div style="display: flex; justify-content: center; gap: 8px; margin-bottom: 1.5rem; flex-wrap: wrap;">
+    {% for m in months_list %}
+    <div class="month-dot" data-month-idx="{{ loop.index0 }}" onclick="goToMonth({{ loop.index0 }})" style="width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.1); cursor: pointer; transition: all 0.3s ease;" title="{{ m }}"></div>
+    {% endfor %}
+</div>
+
+<!-- Monthly Attendance Panels -->
+{% for month in months_list %}
+<div class="month-panel" data-month="{{ month }}" style="display: none;">
+    {% set month_data = all_months_data[month] %}
+    {% if month_data %}
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.2rem; margin-bottom: 2rem;">
+        {% for sub, data in month_data.items() | sort %}
+        <div class="glass-card animate-fade-in" style="padding: 1.5rem; position: relative; overflow: hidden;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: {% if data.percentage >= 75 %}var(--success){% elif data.percentage >= 60 %}var(--warning){% else %}var(--danger){% endif %};"></div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                <div>
+                    <h4 style="font-size: 1rem; font-weight: 800; color: white;">{{ sub }}</h4>
+                    <p style="font-size: 0.7rem; color: var(--accent); font-weight: 600; margin-top: 2px;">{{ month }}</p>
+                </div>
+                <div style="font-size: 1.6rem; font-weight: 800; {% if data.percentage >= 75 %}color: var(--success);{% elif data.percentage >= 60 %}color: var(--warning);{% else %}color: var(--danger);{% endif %}">
+                    {{ data.percentage }}%
+                </div>
+            </div>
+            
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.8rem;">{{ data.attended }} / {{ data.total }} classes</p>
+            
+            <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.05); border-radius: 999px; overflow: hidden;">
+                <div style="width: {{ data.percentage }}%; height: 100%; border-radius: 999px; background: {% if data.percentage >= 75 %}var(--success){% elif data.percentage >= 60 %}var(--warning){% else %}var(--danger){% endif %}; transition: width 1s ease;"></div>
+            </div>
+            
+            {% if data.percentage < 75 %}
+            <div style="margin-top: 10px; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 0.65rem; color: var(--danger);"></i>
+                <span style="font-size: 0.7rem; color: var(--danger); font-weight: 600;">Below 75% threshold</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="glass-card animate-fade-in" style="padding: 2rem; text-align: center; margin-bottom: 2rem;">
+        <p style="color: var(--text-muted); font-weight: 600;">No attendance data for {{ month }}.</p>
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+
+{% else %}
+<div class="glass-card animate-fade-in" style="padding: 1.5rem; margin-bottom: 2rem; border-left: 4px solid var(--accent);">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <div style="width: 44px; height: 44px; background: rgba(139, 92, 246, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--accent);">
+            <i class="fas fa-calendar-days"></i>
+        </div>
+        <div>
+            <h3 style="font-size: 1.1rem; font-weight: 800; color: white;">Monthly Breakdown</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">No monthly records available yet.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Footer Info -->
+<div class="glass-card animate-fade-in" style="background: rgba(255, 255, 255, 0.02); border-left: 2px solid var(--accent); padding: 1.5rem;">
+    <div style="display: flex; gap: 15px; align-items: center;">
+        <i class="fas fa-info-circle" style="color: var(--accent);"></i>
+        <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+            Students below <span style="color: var(--warning); font-weight: 700;">75%</span> attendance will receive warnings. Below <span style="color: var(--danger); font-weight: 700;">70%</span> will be added to the Admin Watchlist. Contact your <span style="color: white; font-weight: 700;">Class Mentor</span> for any discrepancies.
+        </p>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const monthsList = {{ months_list | tojson }};
+let currentIdx = monthsList.length - 1; // Start at latest month
+
+function showMonth(idx) {
+    // Hide all panels
+    document.querySelectorAll('.month-panel').forEach(p => p.style.display = 'none');
+    // Reset all dots
+    document.querySelectorAll('.month-dot').forEach(d => {
+        d.style.background = 'rgba(255,255,255,0.1)';
+        d.style.transform = 'scale(1)';
+    });
+    
+    if (monthsList.length === 0) return;
+    
+    // Clamp index
+    if (idx < 0) idx = 0;
+    if (idx >= monthsList.length) idx = monthsList.length - 1;
+    currentIdx = idx;
+    
+    // Show selected panel
+    const month = monthsList[idx];
+    const panel = document.querySelector(`.month-panel[data-month="${month}"]`);
+    if (panel) {
+        panel.style.display = '';
+        panel.style.animation = 'fadeIn 0.35s ease';
+    }
+    
+    // Update label
+    document.getElementById('currentMonthLabel').textContent = month;
+    
+    // Highlight active dot
+    const activeDot = document.querySelector(`.month-dot[data-month-idx="${idx}"]`);
+    if (activeDot) {
+        activeDot.style.background = 'var(--accent)';
+        activeDot.style.transform = 'scale(1.4)';
+        activeDot.style.boxShadow = '0 0 8px rgba(139,92,246,0.4)';
+    }
+    
+    // Disable/enable prev/next buttons
+    document.getElementById('prevMonthBtn').style.opacity = idx === 0 ? '0.3' : '1';
+    document.getElementById('prevMonthBtn').style.pointerEvents = idx === 0 ? 'none' : 'auto';
+    document.getElementById('nextMonthBtn').style.opacity = idx === monthsList.length - 1 ? '0.3' : '1';
+    document.getElementById('nextMonthBtn').style.pointerEvents = idx === monthsList.length - 1 ? 'none' : 'auto';
+}
+
+function changeMonth(direction) {
+    showMonth(currentIdx + direction);
+}
+
+function goToMonth(idx) {
+    showMonth(idx);
+}
+
+// Initialize on page load — show latest month
+if (monthsList.length > 0) {
+    showMonth(monthsList.length - 1);
+}
+</script>
+{% endblock %}
